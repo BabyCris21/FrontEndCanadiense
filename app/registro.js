@@ -73,7 +73,7 @@ export default function RegistroAlumno() {
       Alert.alert("Éxito", res.data.msg, [
         {
           text: "OK",
-          onPress: () => router.push("/"), 
+          onPress: () => router.push("/"),
         }
       ]);
 
@@ -151,7 +151,7 @@ export default function RegistroAlumno() {
           <Text style={{ color: theme.text }}>Fecha de nacimiento: {fechaNacimiento.toLocaleDateString()}</Text>
         </TouchableOpacity>
 
-        {showDatePicker && (
+        {showDatePicker && Platform.OS === "ios" ? (
           <View style={{
             backgroundColor: theme.background,
             padding: 10,
@@ -179,7 +179,20 @@ export default function RegistroAlumno() {
               </TouchableOpacity>
             </View>
           </View>
+        ) : (
+          Platform.OS === "android" && showDatePicker && (
+            <DateTimePicker
+              value={fechaNacimiento}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);  // cerrar el picker
+                if (selectedDate) setFechaNacimiento(selectedDate); // actualizar directamente
+              }}
+            />
+          )
         )}
+
 
         <View style={{
           borderWidth: 1,
