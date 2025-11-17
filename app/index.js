@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -22,6 +23,10 @@ export default function LoginScreen() {
       const res = await API.post("/usuarios/login", { correo, password });
 
       if (res.data.token) {
+        // 🔥 GUARDAR TOKEN Y USUARIO
+        await AsyncStorage.setItem("token", res.data.token);
+        await AsyncStorage.setItem("usuario", JSON.stringify(res.data.usuario));
+
         const { rol } = res.data.usuario;
 
         // Redirigir según rol
@@ -44,7 +49,15 @@ export default function LoginScreen() {
       colors={["#667eea", "#764ba2"]}
       style={{ flex: 1, justifyContent: "center", padding: 20 }}
     >
-      <Text style={{ color: "white", fontSize: 32, fontWeight: "bold", textAlign: "center", marginBottom: 30 }}>
+      <Text
+        style={{
+          color: "white",
+          fontSize: 32,
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: 30,
+        }}
+      >
         Iniciar Sesión
       </Text>
 
@@ -83,7 +96,9 @@ export default function LoginScreen() {
           onPress={() => setShowPassword(!showPassword)}
           style={{ position: "absolute", right: 15, top: 15 }}
         >
-          <Text style={{ color: "white" }}>{showPassword ? "Ocultar" : "Mostrar"}</Text>
+          <Text style={{ color: "white" }}>
+            {showPassword ? "Ocultar" : "Mostrar"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -97,7 +112,9 @@ export default function LoginScreen() {
           marginBottom: 15,
         }}
       >
-        <Text style={{ color: "white", fontWeight: "bold", textAlign: "center" }}>
+        <Text
+          style={{ color: "white", fontWeight: "bold", textAlign: "center" }}
+        >
           {loading ? "Cargando..." : "Ingresar"}
         </Text>
       </TouchableOpacity>
@@ -106,7 +123,13 @@ export default function LoginScreen() {
         onPress={() => router.push("/registro")}
         style={{ padding: 15 }}
       >
-        <Text style={{ color: "white", textAlign: "center", textDecorationLine: "underline" }}>
+        <Text
+          style={{
+            color: "white",
+            textAlign: "center",
+            textDecorationLine: "underline",
+          }}
+        >
           ¿No tienes cuenta? Regístrate
         </Text>
       </TouchableOpacity>
