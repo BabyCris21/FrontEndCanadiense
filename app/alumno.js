@@ -16,10 +16,11 @@ export default function AlumnoScreen() {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [tema, setTema] = useState("light"); // default
-  const router = useRouter();
+  const [tema, setTema] = useState("light");
+  const [enfoqueActual, setEnfoqueActual] = useState(null);
+  const [enfoques, setEnfoques] = useState([]);
 
-  // Detectar tema del dispositivo
+  const router = useRouter();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -31,12 +32,28 @@ export default function AlumnoScreen() {
         const user = JSON.parse(data);
         setUsuario(user);
 
-        // Verificar si ya se mostró la bienvenida
+        // Bienvenida una sola vez
         const yaMostrado = await AsyncStorage.getItem("welcomeShown");
         if (!yaMostrado) {
           setShowWelcome(true);
           await AsyncStorage.setItem("welcomeShown", "true");
         }
+
+        // Cargar enfoque actual desde la API
+        const res = await fetch(
+          `http://192.168.18.40:5000/api/alumno-enfoque/${user.id}`
+        );
+        const json = await res.json();
+        if (json?.enfoqueId?.nombre) {
+          setEnfoqueActual(json.enfoqueId.nombre);
+        }
+
+        // Cargar todos los enfoques disponibles
+        const resEnfoques = await fetch(
+          "http://192.168.18.40:5000/api/enfoques"
+        );
+        const jsonEnfoques = await resEnfoques.json();
+        setEnfoques(jsonEnfoques);
       } catch (err) {
         console.log("Error cargando usuario:", err);
       } finally {
@@ -47,18 +64,37 @@ export default function AlumnoScreen() {
     cargarDatos();
   }, []);
 
-  const enfoques = [
-    "Mejorar organización",
-    "Aumentar constancia",
-    "Incrementar motivación",
-    "Optimizar rendimiento académico",
-  ];
+  const handleEnfoqueSelect = async (enfoque) => {
+    try {
+      console.log("Enviando al backend:", {
+        alumnoId: usuario.id,
+        enfoqueId: enfoque._id,
+      });
 
-  const handleEnfoqueSelect = (enfoque) => {
-    router.push({
-      pathname: "/enfoqueDetalle",
-      params: { usuario, enfoque },
-    });
+      const res = await fetch(
+        "http://192.168.18.40:5000/api/alumno-enfoque/set",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            alumnoId: usuario.id,
+            enfoqueId: enfoque._id,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      console.log("Respuesta backend:", data);
+
+      setEnfoqueActual(enfoque.nombre);
+
+      router.push({
+        pathname: "/enfoqueDetalle",
+        params: { usuario: usuario.id, enfoque: enfoque.nombre },
+      });
+    } catch (error) {
+      console.log("Error guardando enfoque:", error);
+    }
   };
 
   if (cargando) {
@@ -74,7 +110,6 @@ export default function AlumnoScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* --- POPUP DE BIENVENIDA --- */}
       {usuario && (
         <WelcomePopup
           visible={showWelcome}
@@ -83,60 +118,65 @@ export default function AlumnoScreen() {
         />
       )}
 
-      {/* --- CONTENIDO PRINCIPAL --- */}
       <ScrollView>
         <Text style={[styles.title, { color: colors.title }]}>
           Hola, {usuario?.nombre} 👋
         </Text>
-        <Text style={[styles.subtitle, { color: colors.subtitle }]}>
-          Aquí verás tu progreso, metas y recomendaciones.
-        </Text>
 
-        {/* Cards */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.cardTitle }]}>
-            📘 Tu grado
-          </Text>
-          <Text style={[styles.cardText, { color: colors.cardText }]}>
-            {usuario?.grado || "No asignado"}
-          </Text>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.cardTitle }]}>
-            🎯 Tus objetivos
-          </Text>
-          <Text style={[styles.cardText, { color: colors.cardText }]}>
-            Pronto verás metas sugeridas aquí.
-          </Text>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.cardTitle }]}>
-            📅 Próximas tareas
-          </Text>
-          <Text style={[styles.cardText, { color: colors.cardText }]}>
-            Aún no tienes tareas asignadas.
-          </Text>
-        </View>
-
-        {/* --- SELECCIÓN DE ENFOQUE --- */}
-        <Text
-          style={[styles.subtitle, { color: colors.subtitle, marginTop: 30 }]}
-        >
-          Selecciona tu enfoque actual:
-        </Text>
-        {enfoques.map((obj, i) => (
-          <TouchableOpacity
-            key={i}
-            style={[styles.button, { backgroundColor: colors.button }]}
-            onPress={() => handleEnfoqueSelect(obj)}
-          >
-            <Text style={[styles.buttonText, { color: colors.buttonText }]}>
-              {obj}
+        {/* --- Enfoque actual --- */}
+        {enfoqueActual && (
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.cardTitle }]}>
+              🎯 Tu enfoque actual
             </Text>
-          </TouchableOpacity>
-        ))}
+            <Text style={[styles.cardText, { color: colors.cardText }]}>
+              {enfoqueActual}
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { backgroundColor: colors.button, marginTop: 10 },
+              ]}
+              onPress={() =>
+                router.push({
+                  pathname: "/enfoqueDetalle",
+                  params: { usuario: usuario.id, enfoque: enfoqueActual },
+                })
+              }
+            >
+              <Text style={[styles.buttonText, { color: colors.buttonText }]}>
+                Ver actividades →
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* --- Selección de enfoque --- */}
+        {!enfoqueActual && (
+          <>
+            <Text
+              style={[
+                styles.subtitle,
+                { color: colors.subtitle, marginTop: 30 },
+              ]}
+            >
+              Selecciona tu enfoque actual:
+            </Text>
+
+            {enfoques.map((obj) => (
+              <TouchableOpacity
+                key={obj._id}
+                style={[styles.button, { backgroundColor: colors.button }]}
+                onPress={() => handleEnfoqueSelect(obj)}
+              >
+                <Text style={[styles.buttonText, { color: colors.buttonText }]}>
+                  {obj.nombre}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
       </ScrollView>
     </View>
   );
