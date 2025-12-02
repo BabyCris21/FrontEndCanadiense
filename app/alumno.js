@@ -140,7 +140,7 @@ export default function AlumnoScreen() {
               ]}
               onPress={() =>
                 router.push({
-                  pathname: "/enfoqueDetalle",
+                  pathname: "/enfoqueAcademico",
                   params: { usuario: usuario.id, enfoque: enfoqueActual },
                 })
               }
