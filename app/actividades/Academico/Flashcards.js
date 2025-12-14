@@ -11,7 +11,7 @@ import {
 } from "react-native";
 
 /* ======================= CONFIG ======================= */
-const BASE_URL = "http://192.168.18.40:5000"; // <-- Cambia por la IP de tu PC si cambias de red
+const BASE_URL = "http://192.168.18.40:5000"; // Cambia según tu red
 
 /* ======================= COLORES ======================= */
 const lightColors = {
@@ -145,7 +145,7 @@ export default function Flashcards() {
         setEnfoqueId(j1.enfoqueId._id);
 
         const r2 = await fetch(
-          `${BASE_URL}/api/actividades/flashcard/${j1.enfoqueId._id}`
+          `${BASE_URL}/api/actividades/flashcard/${j1.enfoqueId._id}?usuarioId=${user.id}`
         );
         const act = await r2.json();
 
@@ -154,18 +154,14 @@ export default function Flashcards() {
           setMisFlashcards(act.flashcards || []);
         }
       } catch (error) {
-        Alert.alert(
-          "Error",
-          "No se pudieron cargar las flashcards. Revisa la conexión con el servidor."
-        );
+        Alert.alert("Error", "No se pudieron cargar las flashcards.");
         console.log(error);
       }
     };
-
     init();
   }, []);
 
-  /* ======================= LOGICA FLASHCARDS POR DEFECTO ======================= */
+  /* ======================= FLASHCARDS POR DEFECTO ======================= */
   const siguiente = async (correcto) => {
     if (correcto) setAciertos((a) => a + 1);
     setMostrarRespuesta(false);
@@ -178,7 +174,7 @@ export default function Flashcards() {
     if (aciertos + (correcto ? 1 : 0) === defaultPreguntas.length) {
       console.log("✔ Completó flashcards por defecto");
       try {
-        await fetch(`${BASE_URL}/api/actividades`, {
+        const res = await fetch(`${BASE_URL}/api/actividades`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -186,8 +182,11 @@ export default function Flashcards() {
             descripcion: "Actividad predeterminada completada",
             tipo: "flashcard",
             enfoqueId,
+            usuarioId: usuario.id,
           }),
         });
+        const data = await res.json();
+        setActividadId(data.actividad._id);
       } catch (error) {
         console.log("No se pudo crear la actividad predeterminada", error);
       }
@@ -199,6 +198,11 @@ export default function Flashcards() {
     if (!nuevaPregunta || !nuevaRespuesta) return;
 
     try {
+      if (!actividadId) {
+        Alert.alert("Error", "Actividad no encontrada para agregar flashcard.");
+        return;
+      }
+
       if (flashcardEditando) {
         await fetch(
           `${BASE_URL}/api/actividades/${actividadId}/flashcards/${flashcardEditando._id}`,
@@ -212,7 +216,6 @@ export default function Flashcards() {
           }
         );
 
-        // actualizar local
         setMisFlashcards((f) =>
           f.map((x) =>
             x._id === flashcardEditando._id
@@ -233,7 +236,6 @@ export default function Flashcards() {
             }),
           }
         );
-
         const data = await res.json();
         setMisFlashcards(data.flashcards);
       }
@@ -316,7 +318,6 @@ export default function Flashcards() {
           <Text style={[s.title, { fontSize: 22, marginTop: 40 }]}>
             📚 Mis Flashcards
           </Text>
-
           {misFlashcards.map((f) => (
             <View key={f._id} style={s.card}>
               <Text style={s.pregunta}>{f.pregunta}</Text>
