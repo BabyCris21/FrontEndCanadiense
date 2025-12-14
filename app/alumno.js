@@ -148,6 +148,27 @@ export default function AlumnoScreen() {
               <Text style={[styles.buttonText, { color: colors.buttonText }]}>
                 Ver actividades →
               </Text>
+
+              <View style={{ alignItems: "flex-end", marginTop: 20 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    {
+                      backgroundColor: "#E53935",
+                      width: 150,
+                      marginBottom: 30,
+                    },
+                  ]}
+                  onPress={async () => {
+                    await AsyncStorage.clear(); // borra todos los datos guardados
+                    router.push("/index"); // reemplaza "/login" por tu ruta de login
+                  }}
+                >
+                  <Text style={[styles.buttonText, { color: "#fff" }]}>
+                    Cerrar sesión
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           </View>
         )}

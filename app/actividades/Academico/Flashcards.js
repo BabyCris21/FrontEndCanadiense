@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +10,10 @@ import {
   View,
 } from "react-native";
 
+/* ======================= CONFIG ======================= */
+const BASE_URL = "http://192.168.18.40:5000"; // <-- Cambia por la IP de tu PC si cambias de red
+
+/* ======================= COLORES ======================= */
 const lightColors = {
   background: "#f7f7f7",
   title: "#4A00E0",
@@ -20,17 +25,7 @@ const lightColors = {
   buttonText: "#fff",
 };
 
-const darkColors = {
-  background: "#121212",
-  title: "#fff",
-  subtitle: "#ccc",
-  card: "#1e1e1e",
-  cardTitle: "#BB86FC",
-  cardText: "#eee",
-  button: "#6200ee",
-  buttonText: "#fff",
-};
-
+/* ======================= ESTILOS ======================= */
 const styles = (theme) =>
   StyleSheet.create({
     container: {
@@ -52,9 +47,6 @@ const styles = (theme) =>
       borderRadius: 15,
       elevation: 4,
       marginBottom: 20,
-      shadowColor: "#000",
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
     },
     pregunta: {
       fontSize: 20,
@@ -94,238 +86,313 @@ const styles = (theme) =>
       marginBottom: 12,
       color: "#000",
     },
-    sectionToggle: { marginVertical: 15, alignItems: "center" },
     sectionButton: {
       backgroundColor: theme.button,
       padding: 12,
       borderRadius: 8,
-      width: "60%",
+      width: "70%",
+      alignSelf: "center",
+      marginTop: 20,
     },
-    boxFlashcard: {
-      backgroundColor: "#f0f0f0",
-      padding: 15,
-      borderRadius: 10,
-      marginBottom: 10,
-    },
-    boxPregunta: { fontWeight: "bold", marginBottom: 5 },
-    boxRespuesta: { color: "#555" },
+    iconBtn: { marginLeft: 12 },
+    icon: { fontSize: 22 },
   });
 
-export default function Flashcards({ actividadId }) {
+/* ======================= COMPONENTE ======================= */
+export default function Flashcards() {
+  const theme = lightColors;
+  const s = styles(theme);
+
+  /* ---------- FLASHCARDS POR DEFECTO ---------- */
   const defaultPreguntas = [
-    {
-      pregunta: "¿Qué es una variable?",
-      respuesta: "Un espacio donde se almacena un valor.",
-    },
-    {
-      pregunta: "¿Qué es una célula?",
-      respuesta: "La unidad básica de la vida.",
-    },
-    {
-      pregunta: "¿Quién descubrió América?",
-      respuesta: "Cristóbal Colón en 1492.",
-    },
+    { pregunta: "¿Qué es una variable?", respuesta: "Un espacio de memoria." },
+    { pregunta: "¿Qué es una célula?", respuesta: "Unidad básica de la vida." },
+    { pregunta: "¿Quién descubrió América?", respuesta: "Cristóbal Colón." },
     {
       pregunta: "¿Qué es un mapa mental?",
-      respuesta: "Una representación gráfica de ideas conectadas.",
+      respuesta: "Representación gráfica de ideas.",
     },
   ];
 
   const [index, setIndex] = useState(0);
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
   const [aciertos, setAciertos] = useState(0);
+
+  /* ---------- FLASHCARDS CREADAS ---------- */
   const [misFlashcards, setMisFlashcards] = useState([]);
+  const [mostrarRespuestaCreadas, setMostrarRespuestaCreadas] = useState({});
+
+  /* ---------- FORM ---------- */
+  const [crearModo, setCrearModo] = useState(false);
   const [nuevaPregunta, setNuevaPregunta] = useState("");
   const [nuevaRespuesta, setNuevaRespuesta] = useState("");
-  const [crearModo, setCrearModo] = useState(false);
+  const [flashcardEditando, setFlashcardEditando] = useState(null);
+
+  /* ---------- CONTEXTO ---------- */
   const [usuario, setUsuario] = useState(null);
   const [enfoqueId, setEnfoqueId] = useState(null);
+  const [actividadId, setActividadId] = useState(null);
 
-  const darkMode = false;
-  const theme = darkMode ? darkColors : lightColors;
-  const s = styles(theme);
-
-  const todasPreguntas = defaultPreguntas;
-
+  /* ======================= INIT ======================= */
   useEffect(() => {
-    const cargarUsuario = async () => {
-      const data = await AsyncStorage.getItem("usuario");
-      const user = JSON.parse(data);
-      setUsuario(user);
+    const init = async () => {
+      try {
+        const user = JSON.parse(await AsyncStorage.getItem("usuario"));
+        setUsuario(user);
 
-      // Obtener enfoqueId del alumno
-      const res = await fetch(
-        `http://localhost:5000/api/alumno-enfoque/${user.id}`
-      );
-      const json = await res.json();
-      if (json?.enfoqueId) setEnfoqueId(json.enfoqueId._id);
+        const r1 = await fetch(`${BASE_URL}/api/alumno-enfoque/${user.id}`);
+        const j1 = await r1.json();
+        setEnfoqueId(j1.enfoqueId._id);
+
+        const r2 = await fetch(
+          `${BASE_URL}/api/actividades/flashcard/${j1.enfoqueId._id}`
+        );
+        const act = await r2.json();
+
+        if (act) {
+          setActividadId(act._id);
+          setMisFlashcards(act.flashcards || []);
+        }
+      } catch (error) {
+        Alert.alert(
+          "Error",
+          "No se pudieron cargar las flashcards. Revisa la conexión con el servidor."
+        );
+        console.log(error);
+      }
     };
-    cargarUsuario();
+
+    init();
   }, []);
 
+  /* ======================= LOGICA FLASHCARDS POR DEFECTO ======================= */
   const siguiente = async (correcto) => {
-    if (correcto) setAciertos(aciertos + 1);
+    if (correcto) setAciertos((a) => a + 1);
     setMostrarRespuesta(false);
-    if (index < todasPreguntas.length - 1) setIndex(index + 1);
 
-    // Cuando termine todas las flashcards predeterminadas
-    if (index === todasPreguntas.length - 1 && correcto) {
-      await crearActividadFlashcards();
+    if (index < defaultPreguntas.length - 1) {
+      setIndex(index + 1);
+      return;
     }
-  };
 
-  // Crear actividad en la DB
-  const crearActividadFlashcards = async () => {
-    if (!usuario || !enfoqueId) return console.log("No hay usuario o enfoque");
-
-    try {
-      console.log("Creando actividad Flashcards en DB...");
-      const res = await fetch("http://localhost:5000/api/actividades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: "Flashcards rápidas",
-          descripcion: "Actividad predeterminada completada",
-          tipo: "flashcard",
-          enfoqueId,
-        }),
-      });
-      const data = await res.json();
-      console.log("Actividad creada:", data);
-    } catch (error) {
-      console.log("Error creando actividad:", error);
-    }
-  };
-
-  const agregarFlashcard = async () => {
-    if (!nuevaPregunta.trim() || !nuevaRespuesta.trim()) return;
-    const nueva = { pregunta: nuevaPregunta, respuesta: nuevaRespuesta };
-
-    // Guardar en backend como "apunte"
-    try {
-      const res = await fetch(
-        `http://localhost:5000/api/actividades/${actividadId}/flashcards`,
-        {
+    if (aciertos + (correcto ? 1 : 0) === defaultPreguntas.length) {
+      console.log("✔ Completó flashcards por defecto");
+      try {
+        await fetch(`${BASE_URL}/api/actividades`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ flashcards: [nueva] }),
-        }
-      );
-      const data = await res.json();
-      console.log("Flashcard agregada en DB:", data);
-    } catch (error) {
-      console.log("Error guardando flashcard:", error);
+          body: JSON.stringify({
+            titulo: "Flashcards rápidas",
+            descripcion: "Actividad predeterminada completada",
+            tipo: "flashcard",
+            enfoqueId,
+          }),
+        });
+      } catch (error) {
+        console.log("No se pudo crear la actividad predeterminada", error);
+      }
     }
-
-    // Guardar localmente para mostrar debajo
-    setMisFlashcards([...misFlashcards, nueva]);
-    setNuevaPregunta("");
-    setNuevaRespuesta("");
   };
 
+  /* ======================= CRUD FLASHCARDS ======================= */
+  const guardarFlashcard = async () => {
+    if (!nuevaPregunta || !nuevaRespuesta) return;
+
+    try {
+      if (flashcardEditando) {
+        await fetch(
+          `${BASE_URL}/api/actividades/${actividadId}/flashcards/${flashcardEditando._id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              pregunta: nuevaPregunta,
+              respuesta: nuevaRespuesta,
+            }),
+          }
+        );
+
+        // actualizar local
+        setMisFlashcards((f) =>
+          f.map((x) =>
+            x._id === flashcardEditando._id
+              ? { ...x, pregunta: nuevaPregunta, respuesta: nuevaRespuesta }
+              : x
+          )
+        );
+      } else {
+        const res = await fetch(
+          `${BASE_URL}/api/actividades/${actividadId}/flashcards`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              flashcards: [
+                { pregunta: nuevaPregunta, respuesta: nuevaRespuesta },
+              ],
+            }),
+          }
+        );
+
+        const data = await res.json();
+        setMisFlashcards(data.flashcards);
+      }
+
+      setNuevaPregunta("");
+      setNuevaRespuesta("");
+      setFlashcardEditando(null);
+      setCrearModo(false);
+    } catch (error) {
+      Alert.alert("Error", "No se pudo guardar la flashcard.");
+      console.log(error);
+    }
+  };
+
+  const eliminarFlashcard = async (id) => {
+    Alert.alert("Eliminar", "¿Eliminar esta flashcard?", [
+      { text: "Cancelar" },
+      {
+        text: "Eliminar",
+        onPress: async () => {
+          try {
+            await fetch(
+              `${BASE_URL}/api/actividades/${actividadId}/flashcards/${id}`,
+              { method: "DELETE" }
+            );
+            setMisFlashcards((f) => f.filter((x) => x._id !== id));
+          } catch (error) {
+            Alert.alert("Error", "No se pudo eliminar la flashcard.");
+            console.log(error);
+          }
+        },
+      },
+    ]);
+  };
+
+  /* ======================= RENDER ======================= */
   return (
     <ScrollView style={s.container}>
-      <Text style={s.title}>📘 Flashcards Rápidas</Text>
+      <Text style={s.title}>📘 Flashcards</Text>
 
-      {!crearModo && (
+      {/* FLASHCARDS POR DEFECTO */}
+      <View style={s.card}>
+        <Text style={s.pregunta}>{defaultPreguntas[index].pregunta}</Text>
+        {mostrarRespuesta && (
+          <Text style={s.respuesta}>{defaultPreguntas[index].respuesta}</Text>
+        )}
+        <TouchableOpacity
+          style={s.btnVer}
+          onPress={() => setMostrarRespuesta(!mostrarRespuesta)}
+        >
+          <Text style={s.btnText}>
+            {mostrarRespuesta ? "Ocultar respuesta" : "Mostrar respuesta"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={s.bottom}>
+        <TouchableOpacity
+          style={[s.btn, s.correcto]}
+          onPress={() => siguiente(true)}
+        >
+          <Text style={s.btnText}>✔ Lo sabía</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.btn, s.incorrecto]}
+          onPress={() => siguiente(false)}
+        >
+          <Text style={s.btnText}>✖ No lo sabía</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={s.progreso}>
+        Tarjeta {index + 1} / {defaultPreguntas.length}
+      </Text>
+      <Text style={s.aciertos}>Aciertos: {aciertos}</Text>
+
+      {/* FLASHCARDS CREADAS */}
+      {misFlashcards.length > 0 && (
         <>
-          {/* FLASHCARDS predeterminadas */}
-          {todasPreguntas.length > 0 && index < todasPreguntas.length && (
-            <View style={s.card}>
-              <Text style={s.pregunta}>{todasPreguntas[index].pregunta}</Text>
-              {mostrarRespuesta && (
-                <Text style={s.respuesta}>
-                  {todasPreguntas[index].respuesta}
-                </Text>
+          <Text style={[s.title, { fontSize: 22, marginTop: 40 }]}>
+            📚 Mis Flashcards
+          </Text>
+
+          {misFlashcards.map((f) => (
+            <View key={f._id} style={s.card}>
+              <Text style={s.pregunta}>{f.pregunta}</Text>
+              {mostrarRespuestaCreadas[f._id] && (
+                <Text style={s.respuesta}>{f.respuesta}</Text>
               )}
 
-              <TouchableOpacity
-                style={s.btnVer}
-                onPress={() => setMostrarRespuesta(!mostrarRespuesta)}
-              >
-                <Text style={s.btnText}>
-                  {mostrarRespuesta ? "Ocultar respuesta" : "Mostrar respuesta"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TouchableOpacity
+                  style={[s.btnVer, { flex: 1 }]}
+                  onPress={() =>
+                    setMostrarRespuestaCreadas((p) => ({
+                      ...p,
+                      [f._id]: !p[f._id],
+                    }))
+                  }
+                >
+                  <Text style={s.btnText}>Mostrar respuesta</Text>
+                </TouchableOpacity>
 
-          {/* BOTONES */}
-          {index < todasPreguntas.length && (
-            <View style={s.bottom}>
-              <TouchableOpacity
-                style={[s.btn, s.correcto]}
-                onPress={() => siguiente(true)}
-              >
-                <Text style={s.btnText}>✔ Lo sabía</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.btn, s.incorrecto]}
-                onPress={() => siguiente(false)}
-              >
-                <Text style={s.btnText}>✖ No lo sabía</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                <TouchableOpacity
+                  style={s.iconBtn}
+                  onPress={() => {
+                    setFlashcardEditando(f);
+                    setNuevaPregunta(f.pregunta);
+                    setNuevaRespuesta(f.respuesta);
+                    setCrearModo(true);
+                  }}
+                >
+                  <Text style={s.icon}>✏️</Text>
+                </TouchableOpacity>
 
-          <Text style={s.progreso}>
-            Tarjeta {index + 1} / {todasPreguntas.length}
-          </Text>
-          <Text style={s.aciertos}>Aciertos: {aciertos}</Text>
+                <TouchableOpacity
+                  style={s.iconBtn}
+                  onPress={() => eliminarFlashcard(f._id)}
+                >
+                  <Text style={s.icon}>🗑️</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
         </>
       )}
 
-      {/* CREAR FLASHCARD */}
+      {/* FORMULARIO CREAR / EDITAR */}
       {crearModo && (
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 30 }}>
           <TextInput
-            placeholder="Nueva pregunta"
             style={s.input}
+            placeholder="Pregunta"
             value={nuevaPregunta}
             onChangeText={setNuevaPregunta}
           />
           <TextInput
-            placeholder="Nueva respuesta"
             style={s.input}
+            placeholder="Respuesta"
             value={nuevaRespuesta}
             onChangeText={setNuevaRespuesta}
           />
 
-          <TouchableOpacity
-            style={[s.btn, { marginBottom: 10 }]}
-            onPress={agregarFlashcard}
-          >
-            <Text style={s.btnText}>Agregar / Guardar</Text>
+          <TouchableOpacity style={s.btnVer} onPress={guardarFlashcard}>
+            <Text style={s.btnText}>
+              {flashcardEditando ? "Actualizar" : "Guardar"}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Mis Flashcards creadas */}
-      {misFlashcards.length > 0 && (
-        <View style={{ marginTop: 20 }}>
-          <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>
-            Mis Flashcards creadas:
-          </Text>
-          {misFlashcards.map((f, i) => (
-            <View key={i} style={s.boxFlashcard}>
-              <Text style={s.boxPregunta}>{f.pregunta}</Text>
-              <Text style={s.boxRespuesta}>{f.respuesta}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* TOGGLE SECCIÓN */}
-      <View style={s.sectionToggle}>
-        <TouchableOpacity
-          style={s.sectionButton}
-          onPress={() => setCrearModo(!crearModo)}
-        >
-          <Text style={s.btnText}>
-            {crearModo ? "Ver Flashcards" : "Crear Flashcard"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={s.sectionButton}
+        onPress={() => setCrearModo((m) => !m)}
+      >
+        <Text style={s.btnText}>
+          {crearModo ? "Cancelar" : "Crear Flashcard"}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
