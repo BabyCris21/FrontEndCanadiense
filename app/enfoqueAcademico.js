@@ -36,7 +36,7 @@ export default function EnfoqueAcademico() {
       {/* 6. Mapa Mental Interactivo */}
       <TouchableOpacity
         style={styles.card}
-        onPress={() => router.push("/enfoqueAcademico/mapaMental")}
+        onPress={() => router.push("/actividades/Academico/MapaMental")}
       >
         <Text style={styles.cardTitle}>🧩 Mapa Mental Interactivo</Text>
         <Text style={styles.cardDesc}>
