@@ -18,7 +18,10 @@ export default function MapaMentalGrafico({ titulo, nodos }) {
 
   const centroX = width / 2;
   const centroY = height / 2;
-  const radio = Math.min(width, height) / 3;
+
+  // Factor para alargar las líneas
+  const factor = 1.3;
+  const radio = (Math.min(width, height) / 3) * factor;
 
   const nodosPos = nodos.map((nodo, i) => {
     const angle = (2 * Math.PI * i) / nodos.length;
@@ -40,7 +43,7 @@ export default function MapaMentalGrafico({ titulo, nodos }) {
             y1={centroY}
             x2={nodo.x}
             y2={nodo.y}
-            stroke="#1e90ff"
+            stroke="#4A70A9"
             strokeWidth={2}
           />
         ))}
@@ -74,13 +77,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 120,
     padding: 10,
-    backgroundColor: "#1e90ff",
+    backgroundColor: "#4A70A9",
     borderRadius: 30,
     alignItems: "center",
   },
 
   centralText: {
-    color: "#fff",
+    color: "#EFECE3",
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -88,16 +91,16 @@ const styles = StyleSheet.create({
   nodo: {
     position: "absolute",
     width: 140,
-    backgroundColor: "#eef6ff",
+    backgroundColor: "#EFECE3",
     padding: 10,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: "#1e90ff",
+    borderLeftColor: "#4A70A9",
   },
 
   nodoTitle: {
     fontWeight: "bold",
-    color: "#1e90ff",
+    color: "#4A70A9",
   },
 
   nodoDesc: {

@@ -1,5 +1,12 @@
 import { useRef } from "react";
-import { Animated, Dimensions, StyleSheet } from "react-native";
+import {
+  Animated,
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import {
   PanGestureHandler,
   PinchGestureHandler,
@@ -8,7 +15,7 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-export default function MapaMentalZoom({ children }) {
+export default function MapaMentalZoom({ children, onClose }) {
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -68,45 +75,66 @@ export default function MapaMentalZoom({ children }) {
   };
 
   return (
-    <>
+    <View style={styles.modalBackground}>
+      {/* Fondo uniforme */}
+      <View style={styles.background} />
+
+      {/* Contenido con zoom */}
       <PanGestureHandler
         onGestureEvent={onPanEvent}
         onHandlerStateChange={onPanStateChange}
       >
-        <Animated.View style={{ flex: 1 }}>
+        <Animated.View
+          style={[
+            styles.wrapper,
+            { transform: [{ translateX }, { translateY }, { scale }] },
+          ]}
+        >
           <PinchGestureHandler
             onGestureEvent={onPinchEvent}
             onHandlerStateChange={onPinchStateChange}
           >
-            <Animated.View
-              style={[
-                styles.wrapper,
-                { transform: [{ translateX }, { translateY }, { scale }] },
-              ]}
-            >
-              {children}
-            </Animated.View>
+            <Animated.View style={styles.wrapper}>{children}</Animated.View>
           </PinchGestureHandler>
         </Animated.View>
       </PanGestureHandler>
 
-      <Animated.View style={styles.centrarBtnWrapper}>
-        <Animated.Text style={styles.centrarBtn} onPress={centrarMapa}>
-          🧭 Centrar
-        </Animated.Text>
-      </Animated.View>
-    </>
+      {/* Botón de centrar abajo a la izquierda */}
+      <TouchableOpacity style={styles.centerBtn} onPress={centrarMapa}>
+        <Text style={styles.buttonText}>🧭 Centrar</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  modalBackground: { flex: 1 },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#EFECE3", // crema paleta
+  },
   wrapper: { flex: 1 },
-  centrarBtnWrapper: { position: "absolute", bottom: 40, left: 20 },
-  centrarBtn: {
-    backgroundColor: "#1e90ff",
-    color: "#fff",
+
+  closeBtn: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    backgroundColor: "#A70A90", // paleta
     padding: 12,
     borderRadius: 10,
+    zIndex: 10,
+  },
+  centerBtn: {
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    backgroundColor: "#8FABD4", // paleta
+    padding: 12,
+    borderRadius: 10,
+    zIndex: 10,
+  },
+  buttonText: {
+    color: "#EFECE3", // contraste con los botones
     fontWeight: "bold",
   },
 });

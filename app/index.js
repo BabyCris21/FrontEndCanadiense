@@ -1,8 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import API from "./services/api";
 
 export default function LoginScreen() {
@@ -23,13 +30,10 @@ export default function LoginScreen() {
       const res = await API.post("/usuarios/login", { correo, password });
 
       if (res.data.token) {
-        // 🔥 GUARDAR TOKEN Y USUARIO
         await AsyncStorage.setItem("token", res.data.token);
         await AsyncStorage.setItem("usuario", JSON.stringify(res.data.usuario));
 
         const { rol } = res.data.usuario;
-
-        // Redirigir según rol
         if (rol === "alumno") router.push("/alumno");
         else if (rol === "docente") router.push("/docente");
         else router.push("/home");
@@ -45,94 +49,110 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={["#667eea", "#764ba2"]}
-      style={{ flex: 1, justifyContent: "center", padding: 20 }}
-    >
-      <Text
-        style={{
-          color: "white",
-          fontSize: 32,
-          fontWeight: "bold",
-          textAlign: "center",
-          marginBottom: 30,
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#E0DACC" }}>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          padding: 20,
         }}
+        keyboardShouldPersistTaps="handled"
       >
-        Iniciar Sesión
-      </Text>
-
-      <TextInput
-        placeholder="Correo"
-        placeholderTextColor="#ddd"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{
-          backgroundColor: "rgba(255,255,255,0.2)",
-          color: "white",
-          borderRadius: 10,
-          padding: 15,
-          marginBottom: 15,
-        }}
-        value={correo}
-        onChangeText={setCorreo}
-      />
-
-      <View style={{ position: "relative", marginBottom: 20 }}>
-        <TextInput
-          placeholder="Contraseña"
-          placeholderTextColor="#ddd"
-          secureTextEntry={!showPassword}
+        <Text
           style={{
-            backgroundColor: "rgba(255,255,255,0.2)",
-            color: "white",
+            color: "#4A70A9", // título más oscuro
+            fontSize: 32,
+            fontWeight: "bold",
+            textAlign: "center",
+            marginBottom: 30,
+          }}
+        >
+          Iniciar Sesión
+        </Text>
+
+        <TextInput
+          placeholder="Correo"
+          placeholderTextColor="#4A70A9"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={{
+            backgroundColor: "#FFF",
+            color: "#000",
             borderRadius: 10,
             padding: 15,
-            paddingRight: 50,
+            marginBottom: 15,
+            borderWidth: 1,
+            borderColor: "#4A70A9",
           }}
-          value={password}
-          onChangeText={setPassword}
+          value={correo}
+          onChangeText={setCorreo}
         />
+
+        <View style={{ position: "relative", marginBottom: 20 }}>
+          <TextInput
+            placeholder="Contraseña"
+            placeholderTextColor="#4A70A9"
+            secureTextEntry={!showPassword}
+            style={{
+              backgroundColor: "#FFF",
+              color: "#000",
+              borderRadius: 10,
+              padding: 15,
+              paddingRight: 70,
+              borderWidth: 1,
+              borderColor: "#4A70A9",
+            }}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={{ position: "absolute", right: 15, top: 15 }}
+          >
+            <Text style={{ color: "#8FABD4", fontWeight: "bold" }}>
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
-          onPress={() => setShowPassword(!showPassword)}
-          style={{ position: "absolute", right: 15, top: 15 }}
+          onPress={handleLogin}
+          disabled={loading}
+          style={{
+            backgroundColor: "#4A70A9",
+            padding: 15,
+            borderRadius: 10,
+            marginBottom: 15,
+          }}
         >
-          <Text style={{ color: "white" }}>
-            {showPassword ? "Ocultar" : "Mostrar"}
+          <Text
+            style={{
+              color: "#EFECE3",
+              fontWeight: "bold",
+              textAlign: "center",
+              fontSize: 16,
+            }}
+          >
+            {loading ? "Cargando..." : "Ingresar"}
           </Text>
         </TouchableOpacity>
-      </View>
 
-      <TouchableOpacity
-        onPress={handleLogin}
-        disabled={loading}
-        style={{
-          backgroundColor: "#ff6b6b",
-          padding: 15,
-          borderRadius: 10,
-          marginBottom: 15,
-        }}
-      >
-        <Text
-          style={{ color: "white", fontWeight: "bold", textAlign: "center" }}
+        <TouchableOpacity
+          onPress={() => router.push("/registro")}
+          style={{ padding: 15 }}
         >
-          {loading ? "Cargando..." : "Ingresar"}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => router.push("/registro")}
-        style={{ padding: 15 }}
-      >
-        <Text
-          style={{
-            color: "white",
-            textAlign: "center",
-            textDecorationLine: "underline",
-          }}
-        >
-          ¿No tienes cuenta? Regístrate
-        </Text>
-      </TouchableOpacity>
-    </LinearGradient>
+          <Text
+            style={{
+              color: "#4A70A9", // texto más oscuro acorde al fondo
+              textAlign: "center",
+              textDecorationLine: "underline",
+              fontWeight: "bold",
+            }}
+          >
+            ¿No tienes cuenta? Regístrate
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

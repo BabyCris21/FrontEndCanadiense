@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -7,7 +8,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useColorScheme,
   View,
 } from "react-native";
 import WelcomePopup from "../components/ui/WelcomePopup";
@@ -16,39 +16,34 @@ export default function AlumnoScreen() {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [tema, setTema] = useState("light");
   const [enfoqueActual, setEnfoqueActual] = useState(null);
   const [enfoques, setEnfoques] = useState([]);
 
   const router = useRouter();
-  const colorScheme = useColorScheme();
 
   useEffect(() => {
-    if (colorScheme) setTema(colorScheme);
-
     const cargarDatos = async () => {
       try {
         const data = await AsyncStorage.getItem("usuario");
         const user = JSON.parse(data);
         setUsuario(user);
 
-        // Bienvenida una sola vez
         const yaMostrado = await AsyncStorage.getItem("welcomeShown");
         if (!yaMostrado) {
           setShowWelcome(true);
           await AsyncStorage.setItem("welcomeShown", "true");
         }
 
-        // Cargar enfoque actual desde la API
-        const res = await fetch(
+        // Cargar enfoque actual del usuario
+        const resEnfoque = await fetch(
           `http://192.168.18.40:5000/api/alumno-enfoque/${user.id}`
         );
-        const json = await res.json();
-        if (json?.enfoqueId?.nombre) {
-          setEnfoqueActual(json.enfoqueId.nombre);
+        const jsonEnfoque = await resEnfoque.json();
+        if (jsonEnfoque?.enfoqueId?.nombre) {
+          setEnfoqueActual(jsonEnfoque.enfoqueId.nombre);
         }
 
-        // Cargar todos los enfoques disponibles
+        // Cargar todos los enfoques
         const resEnfoques = await fetch(
           "http://192.168.18.40:5000/api/enfoques"
         );
@@ -65,12 +60,9 @@ export default function AlumnoScreen() {
   }, []);
 
   const handleEnfoqueSelect = async (enfoque) => {
-    try {
-      console.log("Enviando al backend:", {
-        alumnoId: usuario.id,
-        enfoqueId: enfoque._id,
-      });
+    if (enfoque.nombre !== "Enfoque Académico") return;
 
+    try {
       const res = await fetch(
         "http://192.168.18.40:5000/api/alumno-enfoque/set",
         {
@@ -83,13 +75,11 @@ export default function AlumnoScreen() {
         }
       );
 
-      const data = await res.json();
-      console.log("Respuesta backend:", data);
-
+      await res.json();
       setEnfoqueActual(enfoque.nombre);
 
       router.push({
-        pathname: "/enfoqueDetalle",
+        pathname: "/enfoqueAcademico",
         params: { usuario: usuario.id, enfoque: enfoque.nombre },
       });
     } catch (error) {
@@ -100,13 +90,13 @@ export default function AlumnoScreen() {
   if (cargando) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6A5AE0" />
-        <Text style={{ marginTop: 10 }}>Cargando datos...</Text>
+        <ActivityIndicator size="large" color="#4A70A9" />
+        <Text style={{ marginTop: 10, color: "#000" }}>Cargando datos...</Text>
       </View>
     );
   }
 
-  const colors = tema === "dark" ? darkColors : lightColors;
+  const colors = lightColors;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -123,7 +113,18 @@ export default function AlumnoScreen() {
           Hola, {usuario?.nombre} 👋
         </Text>
 
-        {/* --- Enfoque actual --- */}
+        {/* Si ya hay enfoque, mostrar banner superior */}
+        {enfoqueActual && (
+          <View style={styles.banner}>
+            <Text style={styles.bannerTitle}>¡Listo para comenzar!</Text>
+            <Text style={styles.bannerSubtitle}>
+              Aquí está tu enfoque principal. Explora tus actividades y mejora
+              tu aprendizaje.
+            </Text>
+          </View>
+        )}
+
+        {/* Mostrar solo la tarjeta del enfoque actual */}
         {enfoqueActual && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.cardTitle }]}>
@@ -148,81 +149,78 @@ export default function AlumnoScreen() {
               <Text style={[styles.buttonText, { color: colors.buttonText }]}>
                 Ver actividades →
               </Text>
-
-              <View style={{ alignItems: "flex-end", marginTop: 20 }}>
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    {
-                      backgroundColor: "#E53935",
-                      width: 150,
-                      marginBottom: 30,
-                    },
-                  ]}
-                  onPress={async () => {
-                    await AsyncStorage.clear(); // borra todos los datos guardados
-                    router.push("/index"); // reemplaza "/login" por tu ruta de login
-                  }}
-                >
-                  <Text style={[styles.buttonText, { color: "#fff" }]}>
-                    Cerrar sesión
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* --- Selección de enfoque --- */}
+        {/* Si no hay enfoque, mostrar lista de enfoques (solo Académico habilitado) */}
         {!enfoqueActual && (
           <>
             <Text
               style={[
                 styles.subtitle,
-                { color: colors.subtitle, marginTop: 30 },
+                { color: colors.subtitle, marginTop: 20 },
               ]}
             >
               Selecciona tu enfoque actual:
             </Text>
 
-            {enfoques.map((obj) => (
-              <TouchableOpacity
-                key={obj._id}
-                style={[styles.button, { backgroundColor: colors.button }]}
-                onPress={() => handleEnfoqueSelect(obj)}
-              >
-                <Text style={[styles.buttonText, { color: colors.buttonText }]}>
-                  {obj.nombre}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {enfoques.map((obj) => {
+              const nombre = obj.nombre;
+              const bloqueado = nombre !== "Enfoque Académico";
+
+              return (
+                <TouchableOpacity
+                  key={nombre}
+                  style={[
+                    styles.button,
+                    {
+                      backgroundColor: bloqueado ? "#ccc" : colors.button,
+                      opacity: bloqueado ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={() => (bloqueado ? null : handleEnfoqueSelect(obj))}
+                  disabled={bloqueado}
+                >
+                  <Text
+                    style={[
+                      styles.buttonText,
+                      { color: bloqueado ? "#888" : colors.buttonText },
+                    ]}
+                  >
+                    {nombre} {bloqueado ? "🔒" : ""}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </>
         )}
       </ScrollView>
+
+      {/* Botón de Cerrar sesión */}
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={async () => {
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("usuario");
+          router.replace("/"); // volver al login
+        }}
+      >
+        <Ionicons name="log-out-outline" size={24} color="#EFECE3" />
+      </TouchableOpacity>
     </View>
   );
 }
 
 const lightColors = {
-  background: "#f7f7f7",
-  title: "#4A00E0",
-  subtitle: "#555",
-  card: "#fff",
-  cardTitle: "#6A5AE0",
-  cardText: "#444",
-  button: "#1e90ff",
-  buttonText: "#fff",
-};
-
-const darkColors = {
-  background: "#121212",
-  title: "#fff",
-  subtitle: "#ccc",
-  card: "#1e1e1e",
-  cardTitle: "#BB86FC",
-  cardText: "#eee",
-  button: "#6200ee",
-  buttonText: "#fff",
+  background: "#E0DACC",
+  title: "#4A70A9",
+  subtitle: "#4A70A9",
+  card: "#FFF",
+  cardTitle: "#4A70A9",
+  cardText: "#000",
+  button: "#8FABD4",
+  buttonText: "#000",
 };
 
 const styles = StyleSheet.create({
@@ -250,5 +248,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
+  },
+  logoutButton: {
+    position: "absolute",
+    bottom: 30,
+    right: 30,
+    backgroundColor: "#4A70A9",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  banner: {
+    backgroundColor: "#8FABD4",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 15,
+  },
+  bannerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 5,
+  },
+  bannerSubtitle: {
+    fontSize: 14,
+    color: "#EFECE3",
   },
 });
