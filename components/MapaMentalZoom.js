@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import {
   Animated,
-  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,9 +12,13 @@ import {
   State,
 } from "react-native-gesture-handler";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const COLORS = {
+  primaryBlue: "#1E56A0",
+  white: "#FFFFFF",
+  bgGray: "#F8FAFF",
+};
 
-export default function MapaMentalZoom({ children, onClose }) {
+export default function MapaMentalZoom({ children }) {
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -23,63 +26,52 @@ export default function MapaMentalZoom({ children, onClose }) {
   const lastScale = useRef(1);
   const lastTranslate = useRef({ x: 0, y: 0 });
 
-  const MIN_SCALE = 0.7;
-  const MAX_SCALE = 3;
-  const MAX_TRANSLATE_X = SCREEN_WIDTH / 2;
-  const MAX_TRANSLATE_Y = SCREEN_HEIGHT / 2;
+  // --- FUNCIÓN QUE FALTABA O ESTABA MAL DEFINIDA ---
+  const centrarMapa = () => {
+    // Resetear valores de animación a 0 y escala a 1
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: false }).start();
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: false }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: false }).start();
+
+    // Resetear los estados de referencia
+    lastScale.current = 1;
+    lastTranslate.current = { x: 0, y: 0 };
+
+    // Limpiar offsets para que no salte al volver a tocar
+    translateX.setOffset(0);
+    translateY.setOffset(0);
+  };
 
   const onPinchEvent = Animated.event([{ nativeEvent: { scale } }], {
     useNativeDriver: false,
   });
 
   const onPinchStateChange = (event) => {
-    if (
-      event.nativeEvent.oldState === State.ACTIVE ||
-      event.nativeEvent.state === State.END
-    ) {
-      let newScale = lastScale.current * event.nativeEvent.scale;
-      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
-      lastScale.current = newScale;
-      scale.setValue(newScale);
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      lastScale.current *= event.nativeEvent.scale;
+      lastScale.current = Math.max(0.7, Math.min(3, lastScale.current));
+      scale.setValue(lastScale.current);
     }
   };
 
   const onPanEvent = Animated.event(
     [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
-    { useNativeDriver: false }
+    { useNativeDriver: false },
   );
 
   const onPanStateChange = (event) => {
-    if (
-      event.nativeEvent.oldState === State.ACTIVE ||
-      event.nativeEvent.state === State.END
-    ) {
-      let newX = lastTranslate.current.x + event.nativeEvent.translationX;
-      let newY = lastTranslate.current.y + event.nativeEvent.translationY;
-
-      newX = Math.min(Math.max(newX, -MAX_TRANSLATE_X), MAX_TRANSLATE_X);
-      newY = Math.min(Math.max(newY, -MAX_TRANSLATE_Y), MAX_TRANSLATE_Y);
-
-      lastTranslate.current = { x: newX, y: newY };
-      translateX.setValue(newX);
-      translateY.setValue(newY);
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      lastTranslate.current.x += event.nativeEvent.translationX;
+      lastTranslate.current.y += event.nativeEvent.translationY;
+      translateX.setOffset(lastTranslate.current.x);
+      translateY.setOffset(lastTranslate.current.y);
+      translateX.setValue(0);
+      translateY.setValue(0);
     }
   };
 
-  const centrarMapa = () => {
-    lastTranslate.current = { x: 0, y: 0 };
-    lastScale.current = 1;
-    translateX.setValue(0);
-    translateY.setValue(0);
-    scale.setValue(1);
-  };
-
   return (
-    <View style={styles.modalBackground}>
-      {/* Fondo uniforme */}
-      <View style={styles.background} />
-
-      {/* Contenido con zoom */}
+    <View style={styles.container}>
       <PanGestureHandler
         onGestureEvent={onPanEvent}
         onHandlerStateChange={onPanStateChange}
@@ -87,7 +79,7 @@ export default function MapaMentalZoom({ children, onClose }) {
         <Animated.View
           style={[
             styles.wrapper,
-            { transform: [{ translateX }, { translateY }, { scale }] },
+            { transform: [{ scale }, { translateX }, { translateY }] },
           ]}
         >
           <PinchGestureHandler
@@ -99,42 +91,37 @@ export default function MapaMentalZoom({ children, onClose }) {
         </Animated.View>
       </PanGestureHandler>
 
-      {/* Botón de centrar abajo a la izquierda */}
-      <TouchableOpacity style={styles.centerBtn} onPress={centrarMapa}>
-        <Text style={styles.buttonText}>🧭 Centrar</Text>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={styles.centerBtn}
+        onPress={centrarMapa}
+      >
+        <Text style={styles.btnText}>🎯 RE-ENFOCAR MAPA</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  modalBackground: { flex: 1 },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#EFECE3", // crema paleta
-  },
+  container: { flex: 1, backgroundColor: COLORS.bgGray },
   wrapper: { flex: 1 },
-
-  closeBtn: {
-    position: "absolute",
-    top: 40,
-    right: 20,
-    backgroundColor: "#A70A90", // paleta
-    padding: 12,
-    borderRadius: 10,
-    zIndex: 10,
-  },
   centerBtn: {
     position: "absolute",
-    bottom: 40,
-    left: 20,
-    backgroundColor: "#8FABD4", // paleta
-    padding: 12,
-    borderRadius: 10,
-    zIndex: 10,
+    bottom: 50,
+    alignSelf: "center",
+    backgroundColor: COLORS.primaryBlue,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 50,
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
   },
-  buttonText: {
-    color: "#EFECE3", // contraste con los botones
-    fontWeight: "bold",
+  btnText: {
+    color: COLORS.white,
+    fontWeight: "900",
+    fontSize: 10,
+    letterSpacing: 1.5,
   },
 });

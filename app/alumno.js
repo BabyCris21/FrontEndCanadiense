@@ -1,283 +1,349 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import WelcomePopup from "../components/ui/WelcomePopup";
+
+const COLORS = {
+  primaryBlue: "#1E56A0",
+  lightBlue: "#E1F0FF",
+  white: "#FFFFFF",
+  textDark: "#2D4B7A",
+  textGray: "#718096",
+  // Colores de los enfoques
+  academico: "#3B82F6",
+  saludable: "#10B981",
+  organizativo: "#F59E0B",
+  bgLight: "#F8FAFF",
+};
 
 export default function AlumnoScreen() {
   const [usuario, setUsuario] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [enfoqueActual, setEnfoqueActual] = useState(null);
-  const [enfoques, setEnfoques] = useState([]);
-
   const router = useRouter();
 
   useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const data = await AsyncStorage.getItem("usuario");
-        const user = JSON.parse(data);
-        setUsuario(user);
-
-        const yaMostrado = await AsyncStorage.getItem("welcomeShown");
-        if (!yaMostrado) {
-          setShowWelcome(true);
-          await AsyncStorage.setItem("welcomeShown", "true");
-        }
-
-        // Cargar enfoque actual del usuario
-        const resEnfoque = await fetch(
-          `http://192.168.18.40:5000/api/alumno-enfoque/${user.id}`
-        );
-        const jsonEnfoque = await resEnfoque.json();
-        if (jsonEnfoque?.enfoqueId?.nombre) {
-          setEnfoqueActual(jsonEnfoque.enfoqueId.nombre);
-        }
-
-        // Cargar todos los enfoques
-        const resEnfoques = await fetch(
-          "http://192.168.18.40:5000/api/enfoques"
-        );
-        const jsonEnfoques = await resEnfoques.json();
-        setEnfoques(jsonEnfoques);
-      } catch (err) {
-        console.log("Error cargando usuario:", err);
-      } finally {
-        setCargando(false);
-      }
+    const cargarUsuario = async () => {
+      const data = await AsyncStorage.getItem("usuario");
+      if (data) setUsuario(JSON.parse(data));
     };
-
-    cargarDatos();
+    cargarUsuario();
   }, []);
 
-  const handleEnfoqueSelect = async (enfoque) => {
-    if (enfoque.nombre !== "Enfoque Académico") return;
-
-    try {
-      const res = await fetch(
-        "http://192.168.18.40:5000/api/alumno-enfoque/set",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            alumnoId: usuario.id,
-            enfoqueId: enfoque._id,
-          }),
-        }
-      );
-
-      await res.json();
-      setEnfoqueActual(enfoque.nombre);
-
-      router.push({
-        pathname: "/enfoqueAcademico",
-        params: { usuario: usuario.id, enfoque: enfoque.nombre },
-      });
-    } catch (error) {
-      console.log("Error guardando enfoque:", error);
-    }
-  };
-
-  if (cargando) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A70A9" />
-        <Text style={{ marginTop: 10, color: "#000" }}>Cargando datos...</Text>
-      </View>
-    );
-  }
-
-  const colors = lightColors;
+  // Definimos los 3 enfoques fijos como en la imagen
+  const enfoquesFijos = [
+    {
+      id: "1",
+      nombre: "Enfoque Académico",
+      sub: "Mejora tu rendimiento",
+      color: COLORS.academico,
+      path: "/enfoqueAcademico",
+    },
+    {
+      id: "2",
+      nombre: "Enfoque Saludable",
+      sub: "Cuida tu bienestar",
+      color: COLORS.saludable,
+      path: "/enfoqueSaludable",
+    },
+    {
+      id: "3",
+      nombre: "Enfoque Organizativo",
+      sub: "Más orden, mejores resultados",
+      color: COLORS.organizativo,
+      path: "/enfoqueOrganizativo",
+    },
+  ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {usuario && (
-        <WelcomePopup
-          visible={showWelcome}
-          nombre={usuario.nombre}
-          onClose={() => setShowWelcome(false)}
-        />
-      )}
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
 
-      <ScrollView>
-        <Text style={[styles.title, { color: colors.title }]}>
-          Hola, {usuario?.nombre} 👋
-        </Text>
+      {/* HEADER AZUL - Ajustado por el Notch */}
+      <View style={styles.topHeader}>
+        <View style={styles.headerRow}>
+          <View style={styles.logoContainer}>
+            <View style={styles.iconBox}>
+              <MaterialCommunityIcons
+                name="book-open-page-variant"
+                size={22}
+                color={COLORS.primaryBlue}
+              />
+            </View>
+            <View>
+              <Text style={styles.logoTitle}>EstudiaSmart</Text>
+              <Text style={styles.logoSubtitle}>Hábitos que te impulsan</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.notifContainer}>
+            <Ionicons name="notifications" size={24} color="white" />
+            <View style={styles.notifBadge} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.whiteCurve} />
+      </View>
 
-        {/* Si ya hay enfoque, mostrar banner superior */}
-        {enfoqueActual && (
-          <View style={styles.banner}>
-            <Text style={styles.bannerTitle}>¡Listo para comenzar!</Text>
-            <Text style={styles.bannerSubtitle}>
-              Aquí está tu enfoque principal. Explora tus actividades y mejora
-              tu aprendizaje.
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+      >
+        {/* BANNER BIENVENIDA */}
+        <View style={styles.welcomeBanner}>
+          <View style={styles.welcomeTextColumn}>
+            <Text style={styles.welcomeName}>
+              Hola,{" "}
+              <Text style={{ color: COLORS.primaryBlue }}>
+                {usuario?.nombre || "Manuel"}
+              </Text>{" "}
+              👋
+            </Text>
+            <Text style={styles.welcomeSub}>
+              Selecciona tu enfoque de estudio
             </Text>
           </View>
-        )}
+          {/* Espacio para imagen del niño estudiando */}
+          <View style={styles.imageSpaceHeader} />
+        </View>
 
-        {/* Mostrar solo la tarjeta del enfoque actual */}
-        {enfoqueActual && (
-          <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.cardTitle }]}>
-              🎯 Tu enfoque actual
-            </Text>
-            <Text style={[styles.cardText, { color: colors.cardText }]}>
-              {enfoqueActual}
-            </Text>
-
+        {/* LISTA DE 3 ENFOQUES */}
+        <View style={styles.enfoquesList}>
+          {enfoquesFijos.map((item) => (
             <TouchableOpacity
+              key={item.id}
               style={[
-                styles.button,
-                { backgroundColor: colors.button, marginTop: 10 },
+                styles.card,
+                { borderLeftWidth: 5, borderLeftColor: item.color },
               ]}
-              onPress={() =>
-                router.push({
-                  pathname: "/enfoqueAcademico",
-                  params: { usuario: usuario.id, enfoque: enfoqueActual },
-                })
-              }
+              onPress={() => router.push(item.path)}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.buttonText, { color: colors.buttonText }]}>
-                Ver actividades →
-              </Text>
+              {/* Espacio para la ilustración de cada enfoque */}
+              <View
+                style={[
+                  styles.cardImageSpace,
+                  { backgroundColor: item.color + "15" },
+                ]}
+              />
+
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>{item.nombre}</Text>
+                <Text style={styles.cardSubText}>{item.sub}</Text>
+              </View>
+
+              <View style={[styles.arrowBtn, { backgroundColor: item.color }]}>
+                <Ionicons name="chevron-forward" size={16} color="white" />
+              </View>
             </TouchableOpacity>
-          </View>
-        )}
+          ))}
+        </View>
 
-        {/* Si no hay enfoque, mostrar lista de enfoques (solo Académico habilitado) */}
-        {!enfoqueActual && (
-          <>
-            <Text
-              style={[
-                styles.subtitle,
-                { color: colors.subtitle, marginTop: 20 },
-              ]}
-            >
-              Selecciona tu enfoque actual:
-            </Text>
-
-            {enfoques.map((obj) => {
-              const nombre = obj.nombre;
-              const bloqueado = nombre !== "Enfoque Académico";
-
-              return (
-                <TouchableOpacity
-                  key={nombre}
-                  style={[
-                    styles.button,
-                    {
-                      backgroundColor: bloqueado ? "#ccc" : colors.button,
-                      opacity: bloqueado ? 0.5 : 1,
-                    },
-                  ]}
-                  onPress={() => (bloqueado ? null : handleEnfoqueSelect(obj))}
-                  disabled={bloqueado}
-                >
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      { color: bloqueado ? "#888" : colors.buttonText },
-                    ]}
-                  >
-                    {nombre} {bloqueado ? "🔒" : ""}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        )}
+        {/* Espacio para ilustración de libros del final */}
+        <View style={styles.footerIllustrationSpace} />
       </ScrollView>
 
-      {/* Botón de Cerrar sesión */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={async () => {
-          await AsyncStorage.removeItem("token");
-          await AsyncStorage.removeItem("usuario");
-          router.replace("/"); // volver al login
-        }}
-      >
-        <Ionicons name="log-out-outline" size={24} color="#EFECE3" />
-      </TouchableOpacity>
+      {/* TAB BAR INFERIOR */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/alumno")}
+        >
+          <Ionicons name="home" size={24} color={COLORS.primaryBlue} />
+          <Text
+            style={[
+              styles.tabText,
+              { color: COLORS.primaryBlue, fontWeight: "700" },
+            ]}
+          >
+            Inicio
+          </Text>
+          <View style={styles.activeDot} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/enfoqueAcademico")}
+        >
+          <Ionicons
+            name="document-text-outline"
+            size={24}
+            color={COLORS.textGray}
+          />
+          <Text style={styles.tabText}>Ejercicios</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem}>
+          <Ionicons
+            name="bar-chart-outline"
+            size={24}
+            color={COLORS.textGray}
+          />
+          <Text style={styles.tabText}>Progreso</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/perfil")}
+        >
+          <Ionicons name="person-outline" size={24} color={COLORS.textGray} />
+          <Text style={styles.tabText}>Perfil</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-const lightColors = {
-  background: "#E0DACC",
-  title: "#4A70A9",
-  subtitle: "#4A70A9",
-  card: "#FFF",
-  cardTitle: "#4A70A9",
-  cardText: "#000",
-  button: "#8FABD4",
-  buttonText: "#000",
-};
-
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 10 },
-  subtitle: { fontSize: 16, marginBottom: 15 },
-  card: {
-    padding: 20,
-    borderRadius: 15,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+  container: { flex: 1, backgroundColor: COLORS.white },
+  topHeader: {
+    backgroundColor: COLORS.primaryBlue,
+    height: Platform.OS === "ios" ? 145 : 125, // Margen para el Notch
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 55 : 35, // Margen para el Notch
   },
-  cardTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
-  cardText: { fontSize: 15 },
-  button: {
-    padding: 15,
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  logoContainer: { flexDirection: "row", alignItems: "center" },
+  iconBox: {
+    backgroundColor: "white",
+    padding: 7,
     borderRadius: 10,
-    marginBottom: 12,
+    marginRight: 12,
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
+  logoTitle: { color: "white", fontSize: 20, fontWeight: "800" },
+  logoSubtitle: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+    fontWeight: "400",
   },
-  logoutButton: {
+  notifContainer: { padding: 5 },
+  notifBadge: {
     position: "absolute",
-    bottom: 30,
-    right: 30,
-    backgroundColor: "#4A70A9",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    top: 5,
+    right: 8,
+    backgroundColor: "#FF5252",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryBlue,
+  },
+  whiteCurve: {
+    position: "absolute",
+    bottom: -1,
+    left: 0,
+    right: 0,
+    height: 35,
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
+  },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 110 },
+
+  welcomeBanner: {
+    backgroundColor: COLORS.lightBlue,
+    borderRadius: 25,
+    padding: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 25,
+  },
+  welcomeTextColumn: { flex: 1 },
+  welcomeName: { fontSize: 22, fontWeight: "700", color: COLORS.textDark },
+  welcomeSub: { fontSize: 14, color: COLORS.textGray, marginTop: 4 },
+  imageSpaceHeader: {
+    width: 85,
+    height: 85,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.4)",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+  },
+
+  enfoquesList: { gap: 16 },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 22,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    // Sombreado IDÉNTICO a la imagen
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 15,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  cardImageSpace: {
+    width: 65,
+    height: 65,
+    borderRadius: 18,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  cardInfo: { flex: 1, marginLeft: 15 },
+  cardTitle: { fontSize: 17, fontWeight: "bold", color: COLORS.textDark },
+  cardSubText: { fontSize: 13, color: COLORS.textGray, marginTop: 3 },
+  arrowBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 8,
   },
-  banner: {
-    backgroundColor: "#8FABD4",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 15,
+
+  footerIllustrationSpace: {
+    width: "100%",
+    height: 130,
+    marginTop: 25,
+    backgroundColor: "#F8FAFF",
+    borderRadius: 25,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  bannerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 5,
+
+  tabBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === "ios" ? 95 : 80,
+    backgroundColor: "white",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: Platform.OS === "ios" ? 25 : 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    paddingHorizontal: 15,
   },
-  bannerSubtitle: {
-    fontSize: 14,
-    color: "#EFECE3",
+  tabItem: { alignItems: "center", justifyContent: "center", flex: 1 },
+  tabText: { fontSize: 12, color: COLORS.textGray, marginTop: 4 },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: COLORS.primaryBlue,
+    marginTop: 4,
   },
 });

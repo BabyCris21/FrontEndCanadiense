@@ -1,46 +1,51 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import * as MediaLibrary from "expo-media-library";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   Modal,
   Platform,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import ViewShot from "react-native-view-shot";
 
 import MapaMentalGrafico from "../../../components/MapaMentalGrafico";
 import MapaMentalZoom from "../../../components/MapaMentalZoom";
 
-const BASE_URL = "http://192.168.18.40:5000";
+const BASE_URL = "https://appcanadiense.onrender.com";
 
-const colors = {
-  background: "#EFECE3",
-  card: "#fff",
-  title: "#4A70A9",
-  subtitle: "#4A70A9",
-  inputBg: "#fff",
-  inputText: "#000",
-  button: "#8FABD4",
-  buttonText: "#000",
-  delete: "#E53935",
-  save: "#4A70A9",
-  edit: "#FFA500",
-  fullscreenBg: "#000",
-  closeBtn: "#E53935",
+const COLORS = {
+  primaryBlue: "#1E56A0",
+  lightBlue: "#E1F0FF",
+  white: "#FFFFFF",
+  textDark: "#2D4B7A",
+  textGray: "#718096",
+  accentBlue: "#3B82F6",
+  delete: "#EF4444",
+  edit: "#F59E0B",
+  bgGray: "#F8FAFF",
 };
 
 export default function MapaMental() {
+  const router = useRouter();
+  const viewShotRef = useRef();
+  const zoomRef = useRef(null);
+
   const [usuarioId, setUsuarioId] = useState(null);
   const [enfoqueId, setEnfoqueId] = useState(null);
   const [mapas, setMapas] = useState([]);
   const [verMapaPreview, setVerMapaPreview] = useState(null);
 
-  // Formulario
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editarMapaId, setEditarMapaId] = useState(null);
   const [titulo, setTitulo] = useState("");
@@ -51,19 +56,19 @@ export default function MapaMental() {
   useEffect(() => {
     const init = async () => {
       try {
-        const user = JSON.parse(await AsyncStorage.getItem("usuario"));
-        if (!user?.id) return;
-
+        const userStr = await AsyncStorage.getItem("usuario");
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
         setUsuarioId(user.id);
 
         const rEnfoque = await fetch(
-          `${BASE_URL}/api/alumno-enfoque/${user.id}`
+          `${BASE_URL}/api/alumno-enfoque/${user.id}`,
         );
         const jEnfoque = await rEnfoque.json();
         if (jEnfoque?.enfoqueId?._id) setEnfoqueId(jEnfoque.enfoqueId._id);
 
         const rMapas = await fetch(
-          `${BASE_URL}/api/actividades/mapa-mental/usuario/${user.id}`
+          `${BASE_URL}/api/actividades/mapa-mental/usuario/${user.id}`,
         );
         const jMapas = await rMapas.json();
         setMapas(jMapas || []);
@@ -74,6 +79,12 @@ export default function MapaMental() {
     init();
   }, []);
 
+  useEffect(() => {
+    if (verMapaPreview) {
+      setTimeout(() => zoomRef.current?.reset(), 600);
+    }
+  }, [verMapaPreview]);
+
   const agregarNodo = () =>
     setNodos((prev) => [...prev, { titulo: "", descripcion: "" }]);
   const actualizarNodo = (index, campo, valor) => {
@@ -81,23 +92,52 @@ export default function MapaMental() {
     copia[index][campo] = valor;
     setNodos(copia);
   };
-  const eliminarNodo = (index) =>
+  const eliminarNodoForm = (index) =>
     setNodos((prev) => prev.filter((_, i) => i !== index));
+
+  const descargarMapa = async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permiso denegado", "Necesitamos acceso a la galería.");
+        return;
+      }
+      const uri = await viewShotRef.current.capture();
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert("¡Guardado!", "Imagen guardada correctamente.");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo generar la imagen.");
+    }
+  };
+
+  const eliminarMapa = (id) => {
+    Alert.alert("Eliminar Mapa", "¿Deseas borrar este proyecto?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await fetch(`${BASE_URL}/api/actividades/${id}/mapa-mental`, {
+              method: "DELETE",
+            });
+            setMapas((prev) => prev.filter((m) => m._id !== id));
+          } catch (error) {
+            Alert.alert("Error", "No se pudo eliminar");
+          }
+        },
+      },
+    ]);
+  };
 
   const guardarMapaMental = async () => {
     if (!titulo.trim() || nodos.length === 0) {
       Alert.alert("Error", "Agrega un título y al menos un nodo");
       return;
     }
-    if (!usuarioId || !enfoqueId) {
-      Alert.alert("Error", "Usuario o enfoque no cargado");
-      return;
-    }
-
     setLoading(true);
     try {
       let actividadId = editarMapaId;
-
       if (!editarMapaId) {
         const resAct = await fetch(`${BASE_URL}/api/actividades`, {
           method: "POST",
@@ -110,17 +150,13 @@ export default function MapaMental() {
             descripcion,
           }),
         });
-
         const act = await resAct.json();
-        if (!act?.actividad?._id) throw new Error("No se creó la actividad");
         actividadId = act.actividad._id;
-
         await fetch(`${BASE_URL}/api/actividades/${actividadId}/mapa-mental`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ nodos }),
         });
-
         setMapas((prev) => [{ ...act.actividad, nodos }, ...prev]);
       } else {
         await fetch(`${BASE_URL}/api/actividades/${actividadId}/mapa-mental`, {
@@ -128,360 +164,501 @@ export default function MapaMental() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ titulo, descripcion, nodos }),
         });
-
-        setMapas((prev) => {
-          const sinDuplicados = prev.filter((m) => m._id !== actividadId);
-          return [
-            { _id: actividadId, titulo, descripcion, nodos },
-            ...sinDuplicados,
-          ];
-        });
+        setMapas((prev) => [
+          { _id: actividadId, titulo, descripcion, nodos },
+          ...prev.filter((m) => m._id !== actividadId),
+        ]);
       }
-
-      Alert.alert("✔", "Mapa mental guardado correctamente");
-      setTitulo("");
-      setDescripcion("");
-      setNodos([]);
-      setEditarMapaId(null);
       setMostrarFormulario(false);
     } catch (error) {
-      console.error("ERROR GUARDAR MAPA", error);
-      Alert.alert("Error", "No se pudo guardar el mapa mental");
+      Alert.alert("Error", "No se pudo guardar");
     } finally {
       setLoading(false);
     }
   };
 
-  const eliminarMapa = async (id) => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/actividades/${id}/mapa-mental`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("No se pudo eliminar");
-      setMapas((prev) => prev.filter((m) => m._id !== id));
-    } catch (error) {
-      console.log(error);
-      Alert.alert("Error", "No se pudo eliminar el mapa mental");
-    }
-  };
-
-  const editarMapa = (mapa) => {
-    setEditarMapaId(mapa._id);
-    setTitulo(mapa.titulo);
-    setDescripcion(mapa.descripcion || "");
-    setNodos(mapa.nodos || []);
-    setMostrarFormulario(true);
-  };
-
-  const verMapa = (mapa) => setVerMapaPreview(mapa);
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.safeArea}>
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
+
+      {/* HEADER IDÉNTICO AL QUE PASASTE */}
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={26} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mis Mapas Mentales</Text>
+          <View style={styles.iconBox}>
+            <MaterialCommunityIcons
+              name="hubspot"
+              size={22}
+              color={COLORS.primaryBlue}
+            />
+          </View>
+        </View>
+        <View style={styles.whiteCurve} />
+      </View>
+
       <ScrollView
-        contentContainerStyle={{
-          padding: 20,
-          paddingBottom: 50,
-          paddingTop: 60,
-        }}
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
       >
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: "bold",
-            color: colors.title,
-            textAlign: "center",
-            marginBottom: 20,
-          }}
-        >
-          🧠 Mis Mapas Mentales
-        </Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.line} />
+          <Text style={styles.sectionTitle}>MIS CREACIONES</Text>
+          <View style={styles.line} />
+        </View>
 
         {mapas.map((mapa) => (
-          <View
-            key={mapa._id}
-            style={{
-              backgroundColor: colors.card,
-              padding: 15,
-              borderRadius: 12,
-              marginBottom: 12,
-              shadowColor: "#000",
-              shadowOpacity: 0.1,
-              shadowRadius: 5,
-              elevation: 3,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "bold",
-                  color: colors.title,
-                }}
-              >
-                {mapa.titulo}
-              </Text>
-              <View style={{ flexDirection: "row" }}>
-                <TouchableOpacity
-                  onPress={() => editarMapa(mapa)}
-                  style={{ marginHorizontal: 5 }}
-                >
-                  <Text style={{ color: colors.edit, fontWeight: "bold" }}>
-                    ✏️
+          <View key={mapa._id} style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardImagePlaceholder}>
+                <MaterialCommunityIcons
+                  name="hubspot"
+                  size={28}
+                  color={COLORS.accentBlue}
+                />
+              </View>
+              <View style={styles.cardTitleContainer}>
+                <Text style={styles.cardTitle}>{mapa.titulo}</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {mapa.nodos?.length || 0} Conceptos
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => eliminarMapa(mapa._id)}
-                  style={{ marginHorizontal: 5 }}
-                >
-                  <Text style={{ color: colors.delete, fontWeight: "bold" }}>
-                    🗑️
-                  </Text>
-                </TouchableOpacity>
+                </View>
               </View>
             </View>
-            <TouchableOpacity onPress={() => verMapa(mapa)}>
-              <Text style={{ color: colors.button, marginTop: 8 }}>👁 Ver</Text>
-            </TouchableOpacity>
+
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                onPress={() => setVerMapaPreview(mapa)}
+                style={styles.actionBtn}
+              >
+                <Ionicons
+                  name="eye-outline"
+                  size={20}
+                  color={COLORS.primaryBlue}
+                />
+                <Text style={styles.actionBtnText}>Ver</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setEditarMapaId(mapa._id);
+                  setTitulo(mapa.titulo);
+                  setDescripcion(mapa.descripcion || "");
+                  setNodos(mapa.nodos || []);
+                  setMostrarFormulario(true);
+                }}
+                style={styles.actionBtn}
+              >
+                <Ionicons name="pencil-outline" size={20} color={COLORS.edit} />
+                <Text style={[styles.actionBtnText, { color: COLORS.edit }]}>
+                  Editar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => eliminarMapa(mapa._id)}
+                style={styles.actionBtn}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={20}
+                  color={COLORS.delete}
+                />
+                <Text style={[styles.actionBtnText, { color: COLORS.delete }]}>
+                  Borrar
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
 
         <TouchableOpacity
-          style={{
-            backgroundColor: colors.button,
-            padding: 15,
-            borderRadius: 10,
-            alignItems: "center",
-            marginTop: 10,
-          }}
+          style={styles.mainCreateBtn}
           onPress={() => {
-            setMostrarFormulario(true);
             setEditarMapaId(null);
             setTitulo("");
             setDescripcion("");
-            setNodos([]);
+            setNodos([{ titulo: "", descripcion: "" }]);
+            setMostrarFormulario(true);
           }}
         >
-          <Text style={{ color: colors.buttonText }}>➕ Crear Nuevo Mapa</Text>
+          <Ionicons name="add-circle" size={24} color="white" />
+          <Text style={styles.mainCreateBtnText}>Crear Nuevo Mapa</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      <Modal visible={mostrarFormulario} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          style={{
-            flex: 1,
-            paddingTop: 50,
-            paddingBottom: 50,
-            paddingHorizontal: 20,
-            backgroundColor: "rgba(0,0,0,0.5)",
-          }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+      {/* TAB BAR IDÉNTICO AL QUE PASASTE */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/AlumnoScreen")}
         >
-          <ScrollView
-            contentContainerStyle={{
-              backgroundColor: colors.background,
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <TextInput
-              placeholder="Título principal"
-              value={titulo}
-              onChangeText={setTitulo}
-              style={{
-                backgroundColor: colors.inputBg,
-                color: colors.inputText,
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-              placeholderTextColor={colors.inputText}
-            />
-            <TextInput
-              placeholder="Descripción (opcional)"
-              value={descripcion}
-              onChangeText={setDescripcion}
-              style={{
-                backgroundColor: colors.inputBg,
-                color: colors.inputText,
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-              placeholderTextColor={colors.inputText}
-            />
-            <Text
-              style={{
-                fontWeight: "bold",
-                color: colors.subtitle,
-                marginBottom: 10,
-              }}
-            >
-              Nodos
-            </Text>
-            {nodos.map((nodo, index) => (
-              <View
-                key={index}
-                style={{
-                  backgroundColor: colors.card,
-                  padding: 12,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                }}
-              >
-                <TextInput
-                  placeholder="Subtítulo"
-                  value={nodo.titulo}
-                  onChangeText={(v) => actualizarNodo(index, "titulo", v)}
-                  style={{
-                    backgroundColor: colors.inputBg,
-                    color: colors.inputText,
-                    padding: 10,
-                    borderRadius: 6,
-                    marginBottom: 5,
-                  }}
-                  placeholderTextColor={colors.inputText}
-                />
-                <TextInput
-                  placeholder="Información"
-                  value={nodo.descripcion}
-                  onChangeText={(v) => actualizarNodo(index, "descripcion", v)}
-                  style={{
-                    backgroundColor: colors.inputBg,
-                    color: colors.inputText,
-                    padding: 10,
-                    borderRadius: 6,
-                    marginBottom: 5,
-                  }}
-                  placeholderTextColor={colors.inputText}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: colors.delete,
-                    padding: 8,
-                    borderRadius: 6,
-                    alignItems: "center",
-                  }}
-                  onPress={() => eliminarNodo(index)}
-                >
-                  <Text style={{ color: "#fff" }}>Eliminar nodo</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-            <TouchableOpacity
-              style={{
-                backgroundColor: colors.button,
-                padding: 12,
-                borderRadius: 8,
-                alignItems: "center",
-                marginBottom: 15,
-              }}
-              onPress={agregarNodo}
-            >
-              <Text style={{ color: colors.buttonText }}>➕ Agregar nodo</Text>
-            </TouchableOpacity>
+          <Ionicons name="home-outline" size={24} color={COLORS.textGray} />
+          <Text style={styles.tabLabel}>Inicio</Text>
+        </TouchableOpacity>
 
-            {/* VISTA PREVIA COMENTADA PARA ELIMINAR */}
-            {/*
-            {nodos.length > 0 && (
-              <View
-                style={{
-                  backgroundColor: colors.previewBg,
-                  borderRadius: 12,
-                  padding: 12,
-                  borderWidth: 2,
-                  borderColor: colors.previewBorder,
-                  marginBottom: 15,
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.previewBorder,
-                    fontWeight: "bold",
-                    textAlign: "center",
-                    marginBottom: 10,
-                  }}
-                >
-                  Vista previa del mapa mental
-                </Text>
-                <MapaMentalGrafico titulo={titulo} nodos={nodos} />
-              </View>
-            )}
-            */}
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/actividades/Academico/EnfoqueAcademico")}
+        >
+          <Ionicons name="document-text" size={24} color={COLORS.primaryBlue} />
+          <Text style={[styles.tabLabel, styles.tabLabelActive]}>
+            Ejercicios
+          </Text>
+          <View style={styles.activeDot} />
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={{
-                backgroundColor: colors.save,
-                padding: 15,
-                borderRadius: 10,
-                alignItems: "center",
-              }}
-              onPress={guardarMapaMental}
-              disabled={loading}
-            >
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                {loading ? "Guardando..." : "Guardar mapa mental"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{ marginTop: 10, alignItems: "center" }}
-              onPress={() => setMostrarFormulario(false)}
-            >
-              <Text style={{ color: colors.delete, fontWeight: "bold" }}>
-                Cancelar
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
+        <TouchableOpacity style={styles.tabItem}>
+          <Ionicons
+            name="bar-chart-outline"
+            size={24}
+            color={COLORS.textGray}
+          />
+          <Text style={styles.tabLabel}>Progreso</Text>
+        </TouchableOpacity>
 
+        <TouchableOpacity style={styles.tabItem}>
+          <Ionicons name="person-outline" size={24} color={COLORS.textGray} />
+          <Text style={styles.tabLabel}>Perfil</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* MODALES IGUALES */}
       <Modal visible={!!verMapaPreview} animationType="fade">
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <View style={{ flex: 1, backgroundColor: colors.fullscreenBg }}>
-            <TouchableOpacity
-              style={{
-                position: "absolute",
-                top: 30,
-                right: 20,
-                backgroundColor: colors.closeBtn,
-                padding: 10,
-                borderRadius: 8,
-                zIndex: 1000,
-              }}
-              onPress={() => setVerMapaPreview(null)}
-            >
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                ✖ Cerrar
-              </Text>
-            </TouchableOpacity>
-            <MapaMentalZoom>
-              <View
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  transform: [{ rotate: "90deg" }],
-                }}
+          <View style={{ flex: 1, backgroundColor: COLORS.bgGray }}>
+            <View style={styles.floatingHeader}>
+              <TouchableOpacity
+                onPress={() => setVerMapaPreview(null)}
+                style={styles.circleBtn}
+              >
+                <Ionicons name="close" size={28} color={COLORS.delete} />
+              </TouchableOpacity>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => zoomRef.current?.reset()}
+                  style={[
+                    styles.circleBtn,
+                    { backgroundColor: COLORS.primaryBlue },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="target"
+                    size={26}
+                    color="white"
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={descargarMapa}
+                  style={[
+                    styles.circleBtn,
+                    { backgroundColor: COLORS.primaryBlue },
+                  ]}
+                >
+                  <Ionicons name="download-outline" size={26} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <MapaMentalZoom ref={zoomRef}>
+              <ViewShot
+                ref={viewShotRef}
+                options={{ format: "jpg", quality: 1.0 }}
+                style={styles.canvas}
               >
                 {verMapaPreview && (
                   <MapaMentalGrafico
                     titulo={verMapaPreview.titulo}
-                    nodos={verMapaPreview.nodos}
+                    nodos={verMapaPreview.nodos || []}
                   />
                 )}
-              </View>
+              </ViewShot>
             </MapaMentalZoom>
           </View>
         </GestureHandlerRootView>
       </Modal>
-    </KeyboardAvoidingView>
+
+      <Modal visible={mostrarFormulario} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.white }}>
+          <View style={styles.modalTopBar}>
+            <Text style={styles.modalTitle}>
+              {editarMapaId ? "Editar Mapa" : "Nuevo Mapa"}
+            </Text>
+            <TouchableOpacity onPress={() => setMostrarFormulario(false)}>
+              <Ionicons name="close" size={30} color={COLORS.textDark} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            <TextInput
+              style={styles.input}
+              placeholder="Título del mapa"
+              value={titulo}
+              onChangeText={setTitulo}
+            />
+            <View style={styles.formSectionRow}>
+              <Text style={styles.formLabel}>Conceptos / Nodos</Text>
+              <TouchableOpacity onPress={agregarNodo}>
+                <Ionicons
+                  name="add-circle"
+                  size={28}
+                  color={COLORS.primaryBlue}
+                />
+              </TouchableOpacity>
+            </View>
+            {nodos.map((n, i) => (
+              <View key={i} style={styles.nodeCard}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text
+                    style={{ fontWeight: "bold", color: COLORS.primaryBlue }}
+                  >
+                    Idea #{i + 1}
+                  </Text>
+                  <TouchableOpacity onPress={() => eliminarNodoForm(i)}>
+                    <Ionicons name="trash" size={18} color={COLORS.delete} />
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  style={styles.nodeInput}
+                  placeholder="Subtítulo"
+                  value={n.titulo}
+                  onChangeText={(v) => actualizarNodo(i, "titulo", v)}
+                />
+                <TextInput
+                  style={[styles.nodeInput, { borderBottomWidth: 0 }]}
+                  placeholder="Breve descripción"
+                  value={n.descripcion}
+                  onChangeText={(v) => actualizarNodo(i, "descripcion", v)}
+                  multiline
+                />
+              </View>
+            ))}
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={guardarMapaMental}
+              disabled={loading}
+            >
+              <Text style={styles.saveBtnText}>
+                {loading ? "Guardando..." : "Guardar Mapa Mental"}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: COLORS.white },
+  header: {
+    backgroundColor: COLORS.primaryBlue,
+    height: Platform.OS === "ios" ? 145 : 125,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 55 : 35,
+    position: "relative",
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  backButton: { padding: 5 },
+  headerTitle: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "800",
+    flex: 1,
+    marginLeft: 10,
+  },
+  iconBox: { backgroundColor: "white", padding: 7, borderRadius: 10 },
+  whiteCurve: {
+    position: "absolute",
+    bottom: -1,
+    left: 0,
+    right: 0,
+    height: 35,
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
+  },
+
+  scrollContainer: { paddingHorizontal: 20, paddingBottom: 110 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 25,
+  },
+  line: { flex: 1, height: 1, backgroundColor: "#F1F5F9" },
+  sectionTitle: {
+    marginHorizontal: 15,
+    color: COLORS.textGray,
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 1,
+  },
+
+  card: {
+    backgroundColor: "white",
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 15,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15 },
+  cardImagePlaceholder: {
+    width: 55,
+    height: 55,
+    borderRadius: 15,
+    backgroundColor: COLORS.lightBlue,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardTitleContainer: { marginLeft: 15, flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textDark },
+  badge: {
+    backgroundColor: COLORS.lightBlue,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  badgeText: { fontSize: 11, color: COLORS.primaryBlue, fontWeight: "700" },
+
+  cardActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    paddingTop: 15,
+  },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 5 },
+  actionBtnText: { fontSize: 13, fontWeight: "700", color: COLORS.primaryBlue },
+
+  mainCreateBtn: {
+    backgroundColor: COLORS.primaryBlue,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 18,
+    borderRadius: 15,
+    gap: 10,
+    marginTop: 10,
+  },
+  mainCreateBtnText: { color: "white", fontWeight: "bold", fontSize: 16 },
+
+  tabBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === "ios" ? 95 : 80,
+    backgroundColor: "white",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: Platform.OS === "ios" ? 25 : 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    paddingHorizontal: 15,
+  },
+  tabItem: { alignItems: "center", justifyContent: "center", flex: 1 },
+  tabLabel: { fontSize: 12, color: COLORS.textGray, marginTop: 4 },
+  tabLabelActive: { color: COLORS.primaryBlue, fontWeight: "700" },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: COLORS.primaryBlue,
+    marginTop: 4,
+  },
+
+  // Canvas y Modales
+  floatingHeader: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    zIndex: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  circleBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+  },
+  canvas: { width: 850, height: 850, backgroundColor: "#F8FAFF" },
+  modalTopBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEE",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textDark },
+  input: {
+    backgroundColor: "#F8FAFF",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#EEE",
+  },
+  formSectionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  formLabel: { fontWeight: "bold", color: COLORS.textDark, fontSize: 16 },
+  nodeCard: {
+    backgroundColor: "#F8FAFF",
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#EEE",
+  },
+  nodeInput: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#DDD",
+    paddingVertical: 8,
+    marginBottom: 5,
+    fontSize: 14,
+  },
+  saveBtn: {
+    backgroundColor: COLORS.primaryBlue,
+    padding: 18,
+    borderRadius: 15,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  saveBtnText: { color: "white", fontWeight: "bold", fontSize: 16 },
+});
