@@ -1,7 +1,8 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,303 +17,214 @@ const COLORS = {
   white: "#FFFFFF",
   textDark: "#2D4B7A",
   textGray: "#718096",
-  accentBlue: "#3B82F6",
-  bgGray: "#F8FAFF",
+  academico: "#3B82F6",
+  saludable: "#10B981",
+  organizativo: "#F59E0B",
 };
 
-export default function EnfoqueAcademico() {
+export default function EnfoqueDetalleScreen() {
+  const [usuario, setUsuario] = useState(null);
   const router = useRouter();
 
+  useEffect(() => {
+    const cargar = async () => {
+      const data = await AsyncStorage.getItem("usuario");
+      if (data) setUsuario(JSON.parse(data));
+    };
+    cargar();
+  }, []);
+
+  const actividades = [
+    {
+      id: "1",
+      nombre: "Flashcards Académicas",
+      sub: "Repasa tus conceptos clave",
+      color: COLORS.academico,
+      path: "/actividades/Academico/Flashcards",
+    },
+    {
+      id: "2",
+      nombre: "Mapa Mental",
+      sub: "Organiza tus ideas visualmente",
+      color: COLORS.saludable,
+      path: "/actividades/Academico/MapaMental",
+    },
+    {
+      id: "3",
+      nombre: "Horario Interactivo",
+      sub: "Crea tu propio horario personal",
+      color: COLORS.organizativo,
+      path: "/actividades/Academico/horario",
+    },
+  ];
+
   return (
-    <View style={styles.safeArea}>
+    <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
         translucent
         backgroundColor="transparent"
       />
 
-      {/* HEADER AZUL - IDÉNTICO A ALUMNO.JS */}
-      <View style={styles.header}>
+      <View style={styles.topHeader}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.7}
+            style={styles.backBtn}
           >
-            <Ionicons name="arrow-back" size={26} color="white" />
+            <Ionicons name="chevron-back" size={24} color="white" />
           </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Enfoque Académico</Text>
-
-          <View style={styles.iconBox}>
-            <MaterialCommunityIcons
-              name="bookshelf"
-              size={22}
-              color={COLORS.primaryBlue}
-            />
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoTitle}>Enfoque Académico</Text>
           </View>
         </View>
         <View style={styles.whiteCurve} />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        bounces={true}
       >
-        <View style={styles.sectionHeader}>
-          <View style={styles.line} />
-          <Text style={styles.sectionTitle}>EJERCICIOS DISPONIBLES</Text>
-          <View style={styles.line} />
+        <View style={styles.welcomeBanner}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.welcomeName}>
+              ¡A estudiar, {usuario?.nombre}!
+            </Text>
+            <Text style={styles.welcomeSub}>
+              Estas son tus actividades disponibles
+            </Text>
+          </View>
         </View>
 
-        {/* 1. Flashcards */}
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.9}
-          onPress={() => router.push("/actividades/Academico/Flashcards")}
-        >
-          <View style={styles.cardHeader}>
-            <View style={styles.cardImagePlaceholder}>
-              <Ionicons
-                name="copy-outline"
-                size={28}
-                color={COLORS.accentBlue}
-              />
-            </View>
-            <View style={styles.cardTitleContainer}>
-              <Text style={styles.cardTitle}>Flashcards</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>12 Actividades</Text>
-              </View>
-            </View>
-          </View>
-          <Text style={styles.cardDesc}>
-            Memoriza conceptos claves usando tarjetas interactivas de forma
-            rápida y sencilla.
-          </Text>
-          <View style={styles.startButton}>
-            <Text style={styles.startButtonText}>Iniciar</Text>
-            <Ionicons name="chevron-forward" size={16} color="white" />
-          </View>
-        </TouchableOpacity>
-
-        {/* 2. Mapa Mental */}
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.9}
-          onPress={() => router.push("/actividades/Academico/MapaMental")}
-        >
-          <View style={styles.cardHeader}>
-            <View
+        <View style={styles.enfoquesList}>
+          {actividades.map((item) => (
+            <TouchableOpacity
+              key={item.id}
               style={[
-                styles.cardImagePlaceholder,
-                { backgroundColor: "#E8F5E9" },
+                styles.card,
+                { borderLeftWidth: 5, borderLeftColor: item.color },
               ]}
+              onPress={() => router.push(item.path)}
             >
-              <MaterialCommunityIcons
-                name="hubspot"
-                size={28}
-                color="#10B981"
+              <View
+                style={[
+                  styles.cardImageSpace,
+                  { backgroundColor: item.color + "15" },
+                ]}
               />
-            </View>
-            <View style={styles.cardTitleContainer}>
-              <Text style={styles.cardTitle}>Mapas Mentales</Text>
-              <View style={[styles.badge, { backgroundColor: "#E8F5E9" }]}>
-                <Text style={[styles.badgeText, { color: "#10B981" }]}>
-                  8 Actividades
-                </Text>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>{item.nombre}</Text>
+                <Text style={styles.cardSubText}>{item.sub}</Text>
               </View>
-            </View>
-          </View>
-          <Text style={styles.cardDesc}>
-            Organiza ideas y conecta conceptos visualmente para mejorar tu
-            comprensión.
-          </Text>
-          <View style={[styles.startButton, { backgroundColor: "#10B981" }]}>
-            <Text style={styles.startButtonText}>Iniciar</Text>
-            <Ionicons name="chevron-forward" size={16} color="white" />
-          </View>
-        </TouchableOpacity>
+              <View style={[styles.arrowBtn, { backgroundColor: item.color }]}>
+                <Ionicons name="chevron-forward" size={16} color="white" />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
 
-      {/* TAB BAR - IDÉNTICO A ALUMNO.JS */}
+      {/* TAB BAR INFERIOR */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={styles.tabItem}
           onPress={() => router.push("/alumno")}
         >
           <Ionicons name="home-outline" size={24} color={COLORS.textGray} />
-          <Text style={styles.tabLabel}>Inicio</Text>
+          <Text style={styles.tabText}>Inicio</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.tabItem}>
           <Ionicons name="document-text" size={24} color={COLORS.primaryBlue} />
-          <Text style={[styles.tabLabel, styles.tabLabelActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              { color: COLORS.primaryBlue, fontWeight: "700" },
+            ]}
+          >
             Ejercicios
           </Text>
           <View style={styles.activeDot} />
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons
-            name="bar-chart-outline"
-            size={24}
-            color={COLORS.textGray}
-          />
-          <Text style={styles.tabLabel}>Progreso</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.tabItem}
           onPress={() => router.push("/perfil")}
         >
           <Ionicons name="person-outline" size={24} color={COLORS.textGray} />
-          <Text style={styles.tabLabel}>Perfil</Text>
+          <Text style={styles.tabText}>Perfil</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
+// ... (Estilos del TabBar y Header que ya tenías)
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.white },
-
-  // Header copiado exactamente de AlumnoScreen
-  header: {
+  container: { flex: 1, backgroundColor: "white" },
+  topHeader: {
     backgroundColor: COLORS.primaryBlue,
-    height: Platform.OS === "ios" ? 145 : 125,
+    height: 110,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 55 : 35,
-    position: "relative",
+    paddingTop: 45,
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: { padding: 5 },
-  headerTitle: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "800",
-    flex: 1,
-    marginLeft: 10,
-  },
-  iconBox: {
-    backgroundColor: "white",
-    padding: 7,
-    borderRadius: 10,
-  },
+  headerRow: { flexDirection: "row", alignItems: "center" },
+  backBtn: { marginRight: 15 },
+  logoTitle: { color: "white", fontSize: 18, fontWeight: "bold" },
   whiteCurve: {
     position: "absolute",
     bottom: -1,
     left: 0,
     right: 0,
-    height: 35,
-    backgroundColor: COLORS.white,
+    height: 30,
+    backgroundColor: "white",
     borderTopLeftRadius: 35,
     borderTopRightRadius: 35,
   },
-
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 110,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 25,
-  },
-  line: { flex: 1, height: 1, backgroundColor: "#F1F5F9" },
-  sectionTitle: {
-    marginHorizontal: 15,
-    color: COLORS.textGray,
-    fontWeight: "700",
-    fontSize: 12,
-    letterSpacing: 1,
-  },
-
-  // Tarjetas con el mismo estilo de sombreado y bordes
-  card: {
-    backgroundColor: "white",
-    borderRadius: 22,
+  scrollContent: { padding: 20, paddingBottom: 100 },
+  welcomeBanner: {
+    backgroundColor: COLORS.lightBlue,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 15,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
   },
-  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15 },
-  cardImagePlaceholder: {
-    width: 55,
-    height: 55,
-    borderRadius: 15,
-    backgroundColor: COLORS.lightBlue,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cardTitleContainer: { marginLeft: 15, flex: 1 },
-  cardTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textDark },
-  badge: {
-    backgroundColor: COLORS.lightBlue,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  badgeText: { fontSize: 11, color: COLORS.primaryBlue, fontWeight: "700" },
-  cardDesc: {
-    fontSize: 14,
-    color: COLORS.textGray,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  startButton: {
-    backgroundColor: COLORS.primaryBlue,
+  welcomeName: { fontSize: 20, fontWeight: "bold", color: COLORS.textDark },
+  welcomeSub: { fontSize: 14, color: COLORS.textGray },
+  enfoquesList: { gap: 15 },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 15,
     flexDirection: "row",
     alignItems: "center",
+    elevation: 3,
+  },
+  cardImageSpace: { width: 50, height: 50, borderRadius: 12 },
+  cardInfo: { flex: 1, marginLeft: 15 },
+  cardTitle: { fontSize: 16, fontWeight: "bold", color: COLORS.textDark },
+  cardSubText: { fontSize: 12, color: COLORS.textGray },
+  arrowBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignSelf: "flex-end",
-    paddingHorizontal: 20,
+    alignItems: "center",
   },
-  startButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    marginRight: 8,
-    fontSize: 14,
-  },
-
-  // Tab Bar igual a AlumnoScreen
   tabBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: Platform.OS === "ios" ? 95 : 80,
+    height: 80,
     backgroundColor: "white",
     flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingBottom: Platform.OS === "ios" ? 25 : 10,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
-    paddingHorizontal: 15,
   },
-  tabItem: { alignItems: "center", justifyContent: "center", flex: 1 },
-  tabLabel: { fontSize: 12, color: COLORS.textGray, marginTop: 4 },
-  tabLabelActive: { color: COLORS.primaryBlue, fontWeight: "700" },
+  tabItem: { flex: 1, alignItems: "center", justifyContent: "center" },
+  tabText: { fontSize: 11, marginTop: 4 },
   activeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: COLORS.primaryBlue,
     marginTop: 4,
   },
