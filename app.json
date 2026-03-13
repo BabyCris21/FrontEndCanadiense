@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "frontendcanadiense",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -42,9 +42,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactNativeArchitectures": ["legacy"],
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "eas": {
