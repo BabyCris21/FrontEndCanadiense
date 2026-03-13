@@ -55,27 +55,13 @@ export default function ReporteAlumno() {
     );
   }
 
-  /* ---------------- FLASHCARDS ---------------- */
-
-  const flashcardSets = actividades.filter((a) => a.tipo === "flashcard");
-
-  const totalFlashcards = flashcardSets.reduce((total, set) => {
-    if (Array.isArray(set.flashcards)) {
-      return total + set.flashcards.length;
-    }
-    return total;
-  }, 0);
-
-  /* ---------------- MAPAS ---------------- */
-
+  const flashcards = actividades.filter((a) => a.tipo === "flashcard");
   const mapas = actividades.filter((a) => a.tipo === "mapa-mental");
 
-  /* ---------------- METAS ---------------- */
-
-  const flashGoal = 10;
+  const flashGoal = 4;
   const mapaGoal = 2;
 
-  const flashProgress = Math.min(totalFlashcards / flashGoal, 1);
+  const flashProgress = Math.min(flashcards.length / flashGoal, 1);
   const mapaProgress = Math.min(mapas.length / mapaGoal, 1);
   const generalProgress = (flashProgress + mapaProgress) / 2;
 
@@ -100,14 +86,13 @@ export default function ReporteAlumno() {
     return "Progreso bajo. Se recomienda aumentar la constancia en las actividades.";
   };
 
-  /* ---------------- PDF ---------------- */
-
   const generarPDF = async () => {
     const fecha = new Date();
 
     const html = `
 <html>
 <head>
+
 <style>
 
 body{
@@ -126,6 +111,8 @@ border-bottom:3px solid #1E56A0;
 padding-bottom:10px;
 }
 
+/* TARJETA PRINCIPAL */
+
 .card{
 background:white;
 border-radius:15px;
@@ -134,9 +121,12 @@ margin-bottom:25px;
 box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
+/* DATOS DEL ALUMNO */
+
 .info-row{
 display:flex;
 margin-bottom:10px;
+font-size:15px;
 }
 
 .info-label{
@@ -144,6 +134,13 @@ width:180px;
 font-weight:bold;
 color:#1E56A0;
 }
+
+.info-value{
+flex:1;
+color:#333;
+}
+
+/* ESTADISTICAS */
 
 .stats{
 display:flex;
@@ -159,7 +156,7 @@ width:30%;
 text-align:center;
 font-weight:bold;
 box-shadow:0 4px 10px rgba(0,0,0,0.08);
-font-size:22px;
+font-size:20px;
 color:#1E56A0;
 }
 
@@ -167,7 +164,10 @@ color:#1E56A0;
 display:block;
 font-size:14px;
 color:#555;
+margin-top:5px;
 }
+
+/* SECCIONES */
 
 .section{
 font-size:20px;
@@ -175,13 +175,38 @@ font-weight:bold;
 margin-top:30px;
 margin-bottom:15px;
 color:#1E56A0;
+border-left:5px solid #1E56A0;
+padding-left:10px;
 }
+
+/* ACTIVIDADES */
 
 .activity{
 background:white;
 padding:15px;
 border-radius:10px;
 margin-bottom:10px;
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
+}
+
+.activity-title{
+font-weight:bold;
+font-size:15px;
+}
+
+.activity-date{
+font-size:12px;
+color:#666;
+margin-top:3px;
+}
+
+/* BARRAS DE PROGRESO */
+
+.progress-card{
+background:white;
+padding:18px;
+border-radius:12px;
+margin-bottom:15px;
 box-shadow:0 2px 6px rgba(0,0,0,0.08);
 }
 
@@ -197,35 +222,70 @@ overflow:hidden;
 .fill{
 height:100%;
 background:#1E56A0;
+border-radius:10px;
 }
+
+/* TEXTO FINAL */
 
 .center{
 text-align:center;
 margin-top:25px;
 }
 
+.percent{
+font-size:20px;
+font-weight:bold;
+color:#1E56A0;
+}
+
 </style>
+
 </head>
 
 <body>
 
-<div class="header">Reporte del Alumno</div>
+<div class="header">
+Reporte del Alumno
+</div>
 
 <div class="card">
 
-<div class="info-row"><div class="info-label">Nombre:</div>${nombre}</div>
-<div class="info-row"><div class="info-label">Apellidos:</div>${apellido}</div>
-<div class="info-row"><div class="info-label">Correo:</div>${correo}</div>
-<div class="info-row"><div class="info-label">Grado:</div>${grado}</div>
-<div class="info-row"><div class="info-label">DNI:</div>${dni}</div>
-<div class="info-row"><div class="info-label">Fecha:</div>${fecha.toLocaleDateString()}</div>
+<div class="info-row">
+<div class="info-label">Nombre:</div>
+<div class="info-value">${nombre}</div>
+</div>
+
+<div class="info-row">
+<div class="info-label">Apellidos:</div>
+<div class="info-value">${apellido}</div>
+</div>
+
+<div class="info-row">
+<div class="info-label">Correo:</div>
+<div class="info-value">${correo}</div>
+</div>
+
+<div class="info-row">
+<div class="info-label">Grado:</div>
+<div class="info-value">${grado}</div>
+</div>
+
+<div class="info-row">
+<div class="info-label">DNI:</div>
+<div class="info-value">${dni}</div>
+</div>
+
+<div class="info-row">
+<div class="info-label">Fecha de reporte:</div>
+<div class="info-value">${fecha.toLocaleDateString()}</div>
+</div>
 
 </div>
 
 <div class="stats">
 
 <div class="stat">
-${totalFlashcards}
+${flashcards.length}
 <span>Flashcards</span>
 </div>
 
@@ -243,13 +303,12 @@ ${actividades.length}
 
 <div class="section">Flashcards</div>
 
-${flashcardSets
+${flashcards
   .map(
     (a) => `
 <div class="activity">
-<b>${a.titulo}</b><br/>
-Tarjetas: ${a.flashcards?.length || 0}<br/>
-${new Date(a.createdAt).toLocaleDateString()}
+<div class="activity-title">${a.titulo}</div>
+<div class="activity-date">${new Date(a.createdAt).toLocaleDateString()}</div>
 </div>
 `,
   )
@@ -261,8 +320,8 @@ ${mapas
   .map(
     (a) => `
 <div class="activity">
-<b>${a.titulo}</b><br/>
-${new Date(a.createdAt).toLocaleDateString()}
+<div class="activity-title">${a.titulo}</div>
+<div class="activity-date">${new Date(a.createdAt).toLocaleDateString()}</div>
 </div>
 `,
   )
@@ -270,21 +329,21 @@ ${new Date(a.createdAt).toLocaleDateString()}
 
 <div class="section">Progreso</div>
 
-<div class="activity">
+<div class="progress-card">
 Flashcards (${Math.round(flashProgress * 100)}%)
 <div class="bar">
 <div class="fill" style="width:${Math.round(flashProgress * 100)}%"></div>
 </div>
 </div>
 
-<div class="activity">
+<div class="progress-card">
 Mapas Mentales (${Math.round(mapaProgress * 100)}%)
 <div class="bar">
 <div class="fill" style="width:${Math.round(mapaProgress * 100)}%"></div>
 </div>
 </div>
 
-<div class="activity">
+<div class="progress-card">
 Progreso General (${porcentajeGeneral}%)
 <div class="bar">
 <div class="fill" style="width:${porcentajeGeneral}%"></div>
@@ -292,8 +351,15 @@ Progreso General (${porcentajeGeneral}%)
 </div>
 
 <div class="center">
-<b>Avance total: ${porcentajeGeneral}% ${getEmoji(generalProgress)}</b>
-<p>${obtenerSugerencia(porcentajeGeneral)}</p>
+
+<div class="percent">
+Avance total: ${porcentajeGeneral}% ${getEmoji(generalProgress)}
+</div>
+
+<p>
+${obtenerSugerencia(porcentajeGeneral)}
+</p>
+
 </div>
 
 </body>
@@ -301,18 +367,24 @@ Progreso General (${porcentajeGeneral}%)
 `;
 
     const { uri } = await Print.printToFileAsync({ html });
+
     await Sharing.shareAsync(uri);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView style={styles.container}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* HEADER */}
+
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
+
           <Text style={styles.title}>Reporte del Alumno</Text>
         </View>
+
+        {/* DATOS DEL ESTUDIANTE */}
 
         <View style={styles.studentCard}>
           <Text style={styles.studentName}>
@@ -323,13 +395,17 @@ Progreso General (${porcentajeGeneral}%)
           <Text style={styles.studentInfo}>{correo}</Text>
         </View>
 
+        {/* RESUMEN */}
+
         <View style={styles.statsContainer}>
           <Stat
             icon="cards-outline"
-            value={totalFlashcards}
+            value={flashcards.length}
             label="Flashcards"
           />
+
           <Stat icon="graph-outline" value={mapas.length} label="Mapas" />
+
           <Stat
             icon="analytics-outline"
             value={actividades.length}
@@ -337,34 +413,51 @@ Progreso General (${porcentajeGeneral}%)
           />
         </View>
 
-        <Text style={styles.section}>Flashcards</Text>
+        {/* FLASHCARDS */}
 
-        {flashcardSets.map((item) => (
-          <ItemCard
-            key={item._id}
-            icon="cards-outline"
-            title={item.titulo}
-            subtitle={`Tarjetas: ${item.flashcards?.length || 0}`}
-            date={item.createdAt}
-          />
-        ))}
+        {flashcards.length > 0 && (
+          <>
+            <Text style={styles.section}>Flashcards</Text>
 
-        <Text style={styles.section}>Mapas Mentales</Text>
+            {flashcards.map((item) => (
+              <ItemCard
+                key={item._id}
+                icon="cards-outline"
+                title={item.titulo}
+                date={item.createdAt}
+                onPress={() => router.push(`/progreso/actividad/${item._id}`)}
+              />
+            ))}
+          </>
+        )}
 
-        {mapas.map((item) => (
-          <ItemCard
-            key={item._id}
-            icon="graph-outline"
-            title={item.titulo}
-            date={item.createdAt}
-          />
-        ))}
+        {/* MAPAS */}
 
-        <Text style={styles.section}>Progreso</Text>
+        {mapas.length > 0 && (
+          <>
+            <Text style={styles.section}>Mapas Mentales</Text>
+
+            {mapas.map((item) => (
+              <ItemCard
+                key={item._id}
+                icon="graph-outline"
+                title={item.titulo}
+                date={item.createdAt}
+                onPress={() => router.push(`/progreso/actividad/${item._id}`)}
+              />
+            ))}
+          </>
+        )}
+
+        {/* PROGRESO */}
+
+        <Text style={styles.section}>Progreso del estudiante</Text>
 
         <View style={styles.progressRow}>
           <Circle value={flashProgress} label="Flashcards" />
+
           <Circle value={mapaProgress} label="Mapas" />
+
           <Circle value={generalProgress} label="General" />
         </View>
 
@@ -376,6 +469,8 @@ Progreso General (${porcentajeGeneral}%)
           {obtenerSugerencia(porcentajeGeneral)}
         </Text>
 
+        {/* BOTON PDF */}
+
         <TouchableOpacity style={styles.reportBtn} onPress={generarPDF}>
           <Text style={styles.reportText}>Generar reporte</Text>
         </TouchableOpacity>
@@ -384,27 +479,26 @@ Progreso General (${porcentajeGeneral}%)
   );
 }
 
-/* COMPONENTES */
-
 const Stat = ({ icon, value, label }) => (
   <View style={styles.statCard}>
     <MaterialCommunityIcons name={icon} size={28} color="#1E56A0" />
+
     <Text style={styles.statNumber}>{value}</Text>
+
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
 
-const ItemCard = ({ icon, title, subtitle, date }) => (
-  <View style={styles.card}>
+const ItemCard = ({ icon, title, date, onPress }) => (
+  <TouchableOpacity style={styles.card} onPress={onPress}>
     <MaterialCommunityIcons name={icon} size={22} color="#1E56A0" />
+
     <View style={{ marginLeft: 10 }}>
       <Text style={styles.cardTitle}>{title}</Text>
-      {subtitle && (
-        <Text style={{ fontSize: 12, color: "#555" }}>{subtitle}</Text>
-      )}
+
       <Text style={styles.cardDate}>{new Date(date).toLocaleDateString()}</Text>
     </View>
-  </View>
+  </TouchableOpacity>
 );
 
 const Circle = ({ value, label }) => {
@@ -421,24 +515,43 @@ const Circle = ({ value, label }) => {
       >
         {() => <Text style={styles.percent}>{percent}%</Text>}
       </AnimatedCircularProgress>
+
       <Text style={styles.circleLabel}>{label}</Text>
     </View>
   );
 };
 
-/* ESTILOS */
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8FAFF" },
-  container: { flex: 1 },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
+  safe: {
+    flex: 1,
+    backgroundColor: "#F8FAFF",
+  },
+
+  container: {
+    flex: 1,
+  },
+
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   header: {
     backgroundColor: "#1E56A0",
-    padding: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
   },
-  title: { color: "white", fontSize: 20, fontWeight: "bold", marginLeft: 15 },
+
+  title: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginLeft: 15,
+  },
+
   studentCard: {
     backgroundColor: "white",
     margin: 20,
@@ -446,9 +559,24 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     elevation: 3,
   },
-  studentName: { fontSize: 18, fontWeight: "bold", color: "#2D4B7A" },
-  studentInfo: { color: "#718096", marginTop: 4 },
-  statsContainer: { flexDirection: "row", justifyContent: "space-around" },
+
+  studentName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#2D4B7A",
+  },
+
+  studentInfo: {
+    color: "#718096",
+    marginTop: 4,
+  },
+
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: -10,
+  },
+
   statCard: {
     backgroundColor: "white",
     width: 110,
@@ -457,8 +585,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 3,
   },
-  statNumber: { fontSize: 20, fontWeight: "bold" },
-  statLabel: { fontSize: 12, color: "#718096" },
+
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  statLabel: {
+    fontSize: 12,
+    color: "#718096",
+  },
+
   section: {
     fontSize: 18,
     fontWeight: "bold",
@@ -466,6 +603,7 @@ const styles = StyleSheet.create({
     marginLeft: 20,
     color: "#2D4B7A",
   },
+
   card: {
     backgroundColor: "white",
     marginHorizontal: 20,
@@ -476,23 +614,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 2,
   },
-  cardTitle: { fontWeight: "bold", color: "#2D4B7A" },
-  cardDate: { fontSize: 12, color: "#718096" },
+
+  cardTitle: {
+    fontWeight: "bold",
+    color: "#2D4B7A",
+  },
+
+  cardDate: {
+    fontSize: 12,
+    color: "#718096",
+  },
+
   progressRow: {
     flexDirection: "row",
     justifyContent: "space-around",
     marginTop: 30,
   },
-  circleContainer: { alignItems: "center" },
-  percent: { fontSize: 16, fontWeight: "bold" },
-  circleLabel: { marginTop: 6 },
-  progressText: { textAlign: "center", marginTop: 20, fontWeight: "bold" },
+
+  circleContainer: {
+    alignItems: "center",
+  },
+
+  percent: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  circleLabel: {
+    marginTop: 6,
+  },
+
+  progressText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+
   sugerencia: {
     textAlign: "center",
     marginTop: 10,
     paddingHorizontal: 30,
     color: "#555",
   },
+
   reportBtn: {
     backgroundColor: "#1E56A0",
     margin: 25,
@@ -500,5 +665,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  reportText: { color: "white", fontWeight: "bold", fontSize: 16 },
+
+  reportText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
