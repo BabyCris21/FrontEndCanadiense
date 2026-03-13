@@ -64,7 +64,7 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Image
-              source={{ uri: "https://placeholder_para_el_personaje" }} // Reemplaza con tu asset local
+              source={require("../assets/images/animado.png")}
               style={styles.avatar}
             />
             <View>

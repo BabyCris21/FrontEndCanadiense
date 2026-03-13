@@ -105,9 +105,7 @@ export default function RegistroAlumno() {
             <Ionicons name="arrow-back" size={24} color={COLORS.darkBlue} />
           </TouchableOpacity>
           <Image
-            source={{
-              uri: "https://img.freepik.com/vector-gratis/cuaderno-abierto-lapiz-estilo-dibujos-animados_1308-100201.jpg",
-            }}
+            source={require("../assets/images/animado.png")}
             style={styles.headerImage}
           />
           <View style={styles.curveOverlay} />

@@ -202,7 +202,19 @@ export default function Docente() {
               </View>
               <TouchableOpacity
                 style={styles.progressBtn}
-                onPress={() => router.push(`/progreso/${item._id}`)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/progreso/[id]",
+                    params: {
+                      id: item._id,
+                      nombre: item.nombre,
+                      apellido: item.apellido,
+                      grado: item.grado,
+                      dni: item.dni,
+                      correo: item.correo,
+                    },
+                  })
+                }
               >
                 <MaterialCommunityIcons
                   name="chart-line"
