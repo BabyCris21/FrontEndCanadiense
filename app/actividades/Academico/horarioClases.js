@@ -21,15 +21,30 @@ import { Ionicons } from "@expo/vector-icons";
 const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 const horas = [
-  "06:00",
   "08:00",
-  "10:00",
-  "12:00",
-  "14:00",
-  "16:00",
-  "18:00",
-  "20:00",
-  "22:00",
+  "08:45",
+  "09:30",
+  "10:15",
+  "11:00",
+  "RECREO_1",
+  "11:30",
+  "12:15",
+  "13:00",
+  "RECREO_2",
+  "14:15",
+  "15:00",
+];
+
+const cursos = [
+  "Matemática",
+  "Lenguaje",
+  "Química",
+  "Ed Física",
+  "Historia",
+  "Computación",
+  "Arte",
+  "Música",
+  "Ed Cívica",
 ];
 
 const coloresDia = {
@@ -46,21 +61,16 @@ const prioridadColor = {
   baja: "#4ECDC4",
 };
 
-const iconosActividad = {
-  estudio: "book",
-  deporte: "fitness",
-  descanso: "bed",
-  personal: "person",
-};
+const esRecreo = (hora) => hora === "RECREO_1" || hora === "RECREO_2";
 
-export default function HorarioPersonal() {
+export default function HorarioClases() {
   const [horario, setHorario] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
   const [celda, setCelda] = useState(null);
 
-  const [actividad, setActividad] = useState("");
+  const [curso, setCurso] = useState("");
+  const [descripcion, setDescripcion] = useState("");
   const [prioridad, setPrioridad] = useState("media");
-  const [tipo, setTipo] = useState("personal");
 
   const [mostrarPicker, setMostrarPicker] = useState(false);
   const [fechaInicio, setFechaInicio] = useState(null);
@@ -74,12 +84,12 @@ export default function HorarioPersonal() {
   }, [horario]);
 
   const cargar = async () => {
-    const data = await AsyncStorage.getItem("horario_personal");
+    const data = await AsyncStorage.getItem("horario_clases");
     if (data) setHorario(JSON.parse(data));
   };
 
   const guardar = async () => {
-    await AsyncStorage.setItem("horario_personal", JSON.stringify(horario));
+    await AsyncStorage.setItem("horario_clases", JSON.stringify(horario));
   };
 
   const calcularSemana = (fecha) => {
@@ -102,29 +112,27 @@ export default function HorarioPersonal() {
     setCelda({ hora, dia });
 
     if (existente) {
-      setActividad(existente.texto);
+      setCurso(existente.curso);
+      setDescripcion(existente.descripcion);
       setPrioridad(existente.prioridad);
-      setTipo(existente.tipo);
     } else {
-      setActividad("");
+      setCurso("");
+      setDescripcion("");
       setPrioridad("media");
-      setTipo("personal");
     }
 
     setModalVisible(true);
   };
 
-  const guardarActividad = () => {
+  const guardarClase = () => {
     const copia = { ...horario };
 
     if (!copia[celda.hora]) copia[celda.hora] = {};
 
-    const textoFinal = actividad.trim() === "" ? "Clases" : actividad.trim();
-
     copia[celda.hora][celda.dia] = {
-      texto: textoFinal,
+      curso,
+      descripcion,
       prioridad,
-      tipo,
     };
 
     setHorario(copia);
@@ -133,7 +141,17 @@ export default function HorarioPersonal() {
 
   const limpiarHorario = async () => {
     setHorario({});
-    await AsyncStorage.removeItem("horario_personal");
+    await AsyncStorage.removeItem("horario_clases");
+  };
+
+  const sugerirEstudio = (hora, dia) => {
+    const index = horas.indexOf(hora);
+    if (index === 0) return null;
+
+    const anterior = horas[index - 1];
+    const claseAnterior = horario?.[anterior]?.[dia];
+
+    return null;
   };
 
   const exportarPDF = async () => {
@@ -145,62 +163,71 @@ export default function HorarioPersonal() {
     const html = `
 <html>
 <head>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <style>
 
 body{
-font-family:Arial;
-padding:25px;
-background:#f8fafc;
+font-family: Arial, Helvetica, sans-serif;
+padding:30px;
+background:#f3f4f6;
 }
 
-.header{
-text-align:center;
-margin-bottom:20px;
+.container{
+background:white;
+padding:25px;
+border-radius:10px;
 }
 
 .title{
-font-size:28px;
+text-align:center;
+font-size:26px;
 font-weight:bold;
 color:#1E56A0;
+margin-bottom:4px;
 }
 
 .subtitle{
-font-size:14px;
+text-align:center;
+font-size:13px;
 color:#555;
-margin-top:4px;
+margin-bottom:18px;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
 table-layout:fixed;
-background:white;
 }
 
 th{
-border:2px solid #444;
-padding:12px;
-font-size:14px;
+border:2px solid #333;
+padding:10px;
+font-size:13px;
 font-weight:bold;
+text-align:center;
 background:#E5E7EB;
 }
 
 td{
-border:2px solid #444;
-padding:10px;
+border:2px solid #333;
+height:60px;
 text-align:center;
 vertical-align:middle;
-height:60px;
-font-size:13px;
+font-size:12px;
+padding:4px;
+word-wrap:break-word;
 }
 
 .hora{
-background:#F1F5F9;
+background:#E5E7EB;
 font-weight:bold;
-width:70px;
+width:65px;
+}
+
+.recreo{
+background:#E2E8F0;
+font-weight:bold;
 }
 
 /* PRIORIDADES */
@@ -217,21 +244,25 @@ background:#FFD93D;
 background:#4ECDC4;
 }
 
-.texto{
+.curso{
 font-weight:bold;
-font-size:13px;
+font-size:12px;
+}
+
+.detalle{
+font-size:11px;
+color:#333;
 }
 
 </style>
-
 </head>
 
 <body>
 
-<div class="header">
-<div class="title">Mi Horario Personal</div>
+<div class="container">
+
+<div class="title">Horario de Clases</div>
 <div class="subtitle">${tituloSemana}</div>
-</div>
 
 <table>
 
@@ -246,43 +277,56 @@ font-size:13px;
 
 ${horas
   .map((hora) => {
-    return `
+    const recreo = esRecreo(hora);
 
+    return `
 <tr>
 
-<td class="hora">${hora}</td>
+<td class="hora">
+${recreo ? "Recreo" : hora}
+</td>
 
 ${dias
   .map((dia) => {
+    if (recreo) {
+      return `<td class="recreo">Recreo</td>`;
+    }
+
     const act = horario?.[hora]?.[dia];
 
     if (!act) {
       return `<td></td>`;
     }
 
+    const detalle = act.descripcion?.trim() === "" ? "Clases" : act.descripcion;
+
     const prioridadClase = "prioridad-" + act.prioridad;
 
     return `
 <td class="${prioridadClase}">
-<div class="texto">${act.texto}</div>
+<div class="curso">${act.curso}</div>
+<div class="detalle">${detalle}</div>
 </td>
 `;
   })
   .join("")}
 
 </tr>
-
 `;
   })
   .join("")}
 
 </table>
 
+</div>
+
 </body>
 </html>
 `;
 
-    const { uri } = await Print.printToFileAsync({ html });
+    const { uri } = await Print.printToFileAsync({
+      html,
+    });
 
     await Sharing.shareAsync(uri);
   };
@@ -290,7 +334,7 @@ ${dias
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topHeader}>
-        <Text style={styles.headerTitle}>Horario Personal</Text>
+        <Text style={styles.headerTitle}>Horario de Clases</Text>
         <View style={styles.whiteCurve} />
       </View>
 
@@ -313,66 +357,90 @@ ${dias
           value={new Date()}
           mode="date"
           display="default"
-          onChange={(e, date) => {
+          onChange={(event, date) => {
             setMostrarPicker(false);
             if (date) calcularSemana(date);
           }}
         />
       )}
 
-      <ScrollView horizontal>
-        <View style={styles.table}>
-          <View style={styles.headerRow}>
-            <Text style={styles.headerHora}>Hora</Text>
+      <ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.table}>
+            <View style={styles.headerRow}>
+              <Text style={styles.headerHora}>Hora</Text>
 
-            {dias.map((dia) => (
-              <Text
-                key={dia}
-                style={[styles.headerDia, { backgroundColor: coloresDia[dia] }]}
-              >
-                {dia}
-              </Text>
+              {dias.map((dia) => (
+                <Text
+                  key={dia}
+                  style={[
+                    styles.headerDia,
+                    { backgroundColor: coloresDia[dia] },
+                  ]}
+                >
+                  {dia}
+                </Text>
+              ))}
+            </View>
+
+            {horas.map((hora) => (
+              <View key={hora} style={styles.row}>
+                <Text style={styles.hora}>
+                  {esRecreo(hora) ? "Recreo" : hora}
+                </Text>
+
+                {dias.map((dia) => {
+                  if (esRecreo(hora)) {
+                    return (
+                      <View
+                        key={dia}
+                        style={[styles.cell, { backgroundColor: "#E2E8F0" }]}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: "bold" }}>
+                          Recreo
+                        </Text>
+                      </View>
+                    );
+                  }
+
+                  const act = horario?.[hora]?.[dia];
+
+                  return (
+                    <TouchableOpacity
+                      key={dia}
+                      style={[
+                        styles.cell,
+                        {
+                          backgroundColor: act
+                            ? prioridadColor[act.prioridad]
+                            : "#fff",
+                        },
+                      ]}
+                      onPress={() => abrirCelda(hora, dia)}
+                    >
+                      {act ? (
+                        <View style={{ alignItems: "center" }}>
+                          <Text style={styles.textCell}>{act.curso}</Text>
+                          <Text style={{ fontSize: 9 }}>{act.descripcion}</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <Ionicons name="add" size={16} color="#94a3b8" />
+
+                          {sugerirEstudio(hora, dia) && (
+                            <Text style={{ fontSize: 8, color: "#64748b" }}>
+                              {sugerirEstudio(hora, dia)}
+                            </Text>
+                          )}
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             ))}
           </View>
-
-          {horas.map((hora) => (
-            <View key={hora} style={styles.row}>
-              <Text style={styles.hora}>{hora}</Text>
-
-              {dias.map((dia) => {
-                const act = horario?.[hora]?.[dia];
-
-                return (
-                  <TouchableOpacity
-                    key={dia}
-                    style={[
-                      styles.cell,
-                      {
-                        backgroundColor: act
-                          ? prioridadColor[act.prioridad]
-                          : "#fff",
-                      },
-                    ]}
-                    onPress={() => abrirCelda(hora, dia)}
-                  >
-                    {act ? (
-                      <View style={{ alignItems: "center" }}>
-                        <Ionicons
-                          name={iconosActividad[act.tipo]}
-                          size={14}
-                          color="#333"
-                        />
-                        <Text style={styles.textCell}>{act.texto}</Text>
-                      </View>
-                    ) : (
-                      <Ionicons name="add" size={16} color="#94a3b8" />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ))}
-        </View>
+        </ScrollView>
       </ScrollView>
 
       <View style={styles.buttonsRow}>
@@ -394,10 +462,27 @@ ${dias
               {celda?.dia} {celda?.hora}
             </Text>
 
+            <ScrollView style={{ maxHeight: 120 }}>
+              {cursos.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    styles.optBtn,
+                    { backgroundColor: curso === c ? "#1E56A0" : "#e5e7eb" },
+                  ]}
+                  onPress={() => setCurso(c)}
+                >
+                  <Text style={{ color: curso === c ? "white" : "black" }}>
+                    {c}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
             <TextInput
-              placeholder="Actividad..."
-              value={actividad}
-              onChangeText={setActividad}
+              placeholder="Descripción..."
+              value={descripcion}
+              onChangeText={setDescripcion}
               style={styles.input}
             />
 
@@ -419,22 +504,7 @@ ${dias
               ))}
             </View>
 
-            <View style={styles.rowOpt}>
-              {Object.keys(iconosActividad).map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  style={[
-                    styles.optBtn,
-                    { backgroundColor: tipo === t ? "#1E56A0" : "#e5e7eb" },
-                  ]}
-                  onPress={() => setTipo(t)}
-                >
-                  <Ionicons name={iconosActividad[t]} size={16} color="#fff" />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity style={styles.saveBtn} onPress={guardarActividad}>
+            <TouchableOpacity style={styles.saveBtn} onPress={guardarClase}>
               <Text style={styles.saveText}>Guardar</Text>
             </TouchableOpacity>
           </View>
@@ -454,11 +524,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
   },
 
-  headerTitle: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
+  headerTitle: { color: "white", fontSize: 20, fontWeight: "bold" },
 
   whiteCurve: {
     position: "absolute",
@@ -482,10 +548,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 
-  weekText: {
-    fontWeight: "bold",
-    color: "#1E56A0",
-  },
+  weekText: { fontWeight: "bold", color: "#1E56A0" },
 
   table: {
     borderRadius: 15,
@@ -530,16 +593,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  textCell: {
-    fontSize: 10,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
+  textCell: { fontSize: 10, fontWeight: "bold", textAlign: "center" },
 
   buttonsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
     margin: 20,
+    marginBottom: 80,
   },
 
   exportBtn: {
@@ -560,10 +620,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  btnText: {
-    color: "white",
-    fontWeight: "bold",
-  },
+  btnText: { color: "white", fontWeight: "bold" },
 
   modalBg: {
     flex: 1,
@@ -579,10 +636,7 @@ const styles = StyleSheet.create({
     width: 280,
   },
 
-  modalTitle: {
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
+  modalTitle: { fontWeight: "bold", marginBottom: 10 },
 
   input: {
     borderWidth: 1,
@@ -600,6 +654,7 @@ const styles = StyleSheet.create({
   optBtn: {
     padding: 10,
     borderRadius: 20,
+    marginBottom: 5,
   },
 
   saveBtn: {
@@ -609,8 +664,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  saveText: {
-    color: "white",
-    fontWeight: "bold",
-  },
+  saveText: { color: "white", fontWeight: "bold" },
 });

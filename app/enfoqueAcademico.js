@@ -51,10 +51,10 @@ export default function EnfoqueDetalleScreen() {
     },
     {
       id: "3",
-      nombre: "Horario Interactivo",
-      sub: "Crea tu propio horario personal",
+      nombre: "Autoevaluación Académica",
+      sub: "Verifica tus avances semanales",
       color: COLORS.organizativo,
-      path: "/actividades/Academico/horario",
+      path: "/actividades/Academico/Autoevaluacion",
     },
   ];
 

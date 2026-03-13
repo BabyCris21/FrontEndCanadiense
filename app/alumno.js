@@ -66,29 +66,34 @@ export default function AlumnoScreen() {
       const stored = await AsyncStorage.getItem("usuario");
       const user = JSON.parse(stored);
 
-      console.log("👤 Usuario cargado:", user);
-      console.log("📌 Enfoque seleccionado:", enfoque);
-
       const alumnoId = user.id || user._id;
 
-      if (!alumnoId) {
-        console.log("❌ alumnoId undefined");
-        return;
-      }
-
-      if (!enfoque._id) {
-        console.log("❌ enfoqueId undefined");
-        return;
-      }
+      console.log("👤 Usuario:", alumnoId);
+      console.log("📌 Enfoque seleccionado:", enfoque);
 
       const res = await API.post("/alumno-enfoque/set", {
         alumnoId: alumnoId,
         enfoqueId: enfoque._id,
       });
 
-      console.log("✅ Guardado correctamente:", res.data);
+      console.log("✅ Guardado:", res.data);
+
+      // guardar enfoque activo localmente
+      await AsyncStorage.setItem(
+        "enfoque_activo",
+        JSON.stringify(res.data.data),
+      );
+
+      // 🔹 NAVEGACIÓN SEGÚN ENFOQUE
+      if (enfoque.nombre === "Enfoque Académico") {
+        router.push("/enfoqueAcademico");
+      } else if (enfoque.nombre === "Enfoque de Organización Personal") {
+        router.push("/enfoqueOrganizacion");
+      } else if (enfoque.nombre === "Enfoque Estratégico de Estudio") {
+        router.push("/enfoqueEstrategico");
+      }
     } catch (error) {
-      console.log("❌ Error guardando enfoque:", error.response?.data || error);
+      console.log("❌ Error guardando enfoque:", error.response?.data);
     }
   };
 
